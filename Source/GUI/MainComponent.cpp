@@ -1,5 +1,4 @@
 #include "MainComponent.h"
-#include "juce_core/juce_core.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <memory>
 
@@ -7,12 +6,14 @@
 MainComponent::MainComponent() {
   setSize(1200, 800);
 
-  this->openButton =
-      std::make_unique<juce::TextButton>(juce::CharPointer_UTF8("Otwórz plik"));
+  this->menuModel.onLoadSoundFileClick = [this]() { this->loadWavFile(); };
 
-  addAndMakeVisible(*this->openButton);
+  this->pMenuBarComponent =
+      std::make_unique<juce::MenuBarComponent>(&this->menuModel);
 
-  this->openButton->setBounds(50, 50, 150, 40);
+  setMenuBarBounds();
+
+  addAndMakeVisible(*this->pMenuBarComponent);
 }
 
 MainComponent::~MainComponent() {}
@@ -32,4 +33,19 @@ void MainComponent::resized() {
   // This is called when the MainComponent is resized.
   // If you add any child components, this is where you should
   // update their positions.
+
+  if (pMenuBarComponent == nullptr) {
+    return;
+  }
+
+  setMenuBarBounds();
+}
+
+void MainComponent::loadWavFile() { std::cout << "Loading file...\n"; }
+
+void MainComponent::setMenuBarBounds() {
+  auto area = getLocalBounds();
+
+  pMenuBarComponent->setBounds(
+      area.removeFromTop(getLookAndFeel().getDefaultMenuBarHeight()));
 }

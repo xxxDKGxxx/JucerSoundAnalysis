@@ -15,10 +15,12 @@ FetchContent_MakeAvailable(juce)
 juce_add_gui_app(App
     PRODUCT_NAME "Tutorial Demo")
 
-target_sources(App PRIVATE
-    Source/Main.cpp
-    Source/MainComponent.cpp
-    Source/MainComponent.h)
+file(GLOB_RECURSE ALL_SOURCE_FILES CONFIGURE_DEPENDS
+    "Source/*.cpp"
+    "Source/*.h"
+)
+
+target_sources(App PRIVATE ${ALL_SOURCE_FILES})
 
 target_compile_definitions(App PRIVATE
     JUCE_WEB_BROWSER=0
