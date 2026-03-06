@@ -7,7 +7,9 @@ AudioModel::AudioModel(std::unique_ptr<juce::AudioBuffer<float>> audioBuffer,
     : audioBuffer(std::move(audioBuffer)), sampleRate(sampleRate),
       bitsPerSample(bitsPerSample), numChannels(numChannels),
       lengthInSamples(lengthInSamples) {}
-juce::AudioBuffer<float> &AudioModel::getAudioBuffer() { return *audioBuffer; }
+const juce::AudioBuffer<float> &AudioModel::getAudioBuffer() {
+  return *audioBuffer;
+}
 double AudioModel::getSampleRate() const { return sampleRate; };
 unsigned int AudioModel::getBitsPerSample() const { return bitsPerSample; };
 unsigned int AudioModel::getNumChannels() const { return numChannels; };

@@ -8,7 +8,7 @@ public:
              double sampleRate, unsigned int bitsPerSample,
              unsigned int numChannels, juce::int64 lengthInSamples);
 
-  juce::AudioBuffer<float> &getAudioBuffer();
+  const juce::AudioBuffer<float> &getAudioBuffer();
   double getSampleRate() const;
   unsigned int getBitsPerSample() const;
   unsigned int getNumChannels() const;
