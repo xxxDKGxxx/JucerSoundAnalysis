@@ -1,4 +1,7 @@
 #include "MainComponent.h"
+#include "juce_audio_basics/juce_audio_basics.h"
+#include "juce_audio_formats/juce_audio_formats.h"
+#include "juce_core/juce_core.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <memory>
 
@@ -6,14 +9,16 @@
 MainComponent::MainComponent() {
   setSize(1200, 800);
 
-  this->menuModel.onLoadSoundFileClick = [this]() { this->loadWavFile(); };
+  menuModel.onLoadSoundFileClick = [this]() { this->loadWavFile(); };
 
-  this->pMenuBarComponent =
+  pMenuBarComponent =
       std::make_unique<juce::MenuBarComponent>(&this->menuModel);
 
   setMenuBarBounds();
 
   addAndMakeVisible(*this->pMenuBarComponent);
+
+  audioFormatManager.registerBasicFormats();
 }
 
 MainComponent::~MainComponent() {}
@@ -41,7 +46,45 @@ void MainComponent::resized() {
   setMenuBarBounds();
 }
 
-void MainComponent::loadWavFile() { std::cout << "Loading file...\n"; }
+void MainComponent::loadWavFile() {
+  pFileChooser.reset(
+      new juce::FileChooser("Select a Wave file...", juce::File{}, "*.wav"));
+
+  auto chooserFlags = juce::FileBrowserComponent::openMode |
+                      juce::FileBrowserComponent::canSelectFiles;
+
+  pFileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser &fc) {
+    auto file = fc.getResult();
+
+    if (file == juce::File{})
+      return;
+
+    auto audioFormatReader = audioFormatManager.createReaderFor(file);
+
+    if (audioFormatReader == nullptr)
+      return;
+
+    auto sampleRate = audioFormatReader->sampleRate;
+    auto bitsPerSample = audioFormatReader->bitsPerSample;
+    auto numChannels = audioFormatReader->numChannels;
+    auto lengthInSamples = audioFormatReader->lengthInSamples;
+
+    juce::Logger::writeToLog("Wczytano plik! Sample Rate: " +
+                             juce::String(sampleRate));
+    juce::Logger::writeToLog("Kanaly: " + juce::String(numChannels) +
+                             ", Dlugosc: " + juce::String(lengthInSamples));
+
+    auto pAudioBuffer = std::make_unique<juce::AudioBuffer<float>>(
+        numChannels, lengthInSamples);
+
+    audioFormatReader->read(pAudioBuffer.get(), 0, lengthInSamples, 0, true,
+                            true);
+
+    pAudioModel.reset(new AudioModel(pAudioBuffer.release(), sampleRate,
+                                     bitsPerSample, numChannels,
+                                     lengthInSamples));
+  });
+}
 
 void MainComponent::setMenuBarBounds() {
   auto area = getLocalBounds();

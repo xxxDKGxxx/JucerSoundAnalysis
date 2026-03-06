@@ -11,7 +11,7 @@ void MenuModel::menuItemSelected(int menuItemID, int topLevelMenuIndex) {
     return;
   }
 
-  this->onLoadSoundFileClick();
+  onLoadSoundFileClick();
 }
 
 juce::PopupMenu MenuModel::getMenuForIndex(int topLevelMenuIndex,

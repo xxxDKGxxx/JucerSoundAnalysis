@@ -1,6 +1,8 @@
 #pragma once
 
-#include "MenuModel.h"
+#include "Menu/MenuModel.h"
+#include "Model/AudioModel.h"
+#include "juce_audio_formats/juce_audio_formats.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <memory>
 
@@ -27,8 +29,12 @@ private:
   void setMenuBarBounds();
 
   std::unique_ptr<juce::MenuBarComponent> pMenuBarComponent;
+  std::unique_ptr<AudioModel> pAudioModel;
+  std::unique_ptr<juce::FileChooser> pFileChooser;
 
   MenuModel menuModel;
+
+  juce::AudioFormatManager audioFormatManager;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
