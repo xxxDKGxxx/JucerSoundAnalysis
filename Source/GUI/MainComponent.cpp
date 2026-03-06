@@ -80,7 +80,7 @@ void MainComponent::loadWavFile() {
     audioFormatReader->read(pAudioBuffer.get(), 0, lengthInSamples, 0, true,
                             true);
 
-    pAudioModel.reset(new AudioModel(pAudioBuffer.release(), sampleRate,
+    pAudioModel.reset(new AudioModel(std::move(pAudioBuffer), sampleRate,
                                      bitsPerSample, numChannels,
                                      lengthInSamples));
   });
