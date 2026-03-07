@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.22)
 project(JUCETutorial VERSION 0.0.1)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -13,7 +15,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(juce)
 
 juce_add_gui_app(App
-    PRODUCT_NAME "Tutorial Demo")
+    PRODUCT_NAME "Sound Analyzer")
 
 file(GLOB_RECURSE ALL_SOURCE_FILES CONFIGURE_DEPENDS
     "Source/*.cpp"
@@ -29,6 +31,7 @@ target_compile_definitions(App PRIVATE
 
 target_link_libraries(App PRIVATE
     juce::juce_audio_utils
+    juce::juce_audio_formats
     juce::juce_gui_basics
     juce::juce_gui_extra
     juce::juce_graphics
