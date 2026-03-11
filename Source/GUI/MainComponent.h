@@ -4,14 +4,21 @@
 #include "Model/AudioModel.h"
 #include "juce_audio_formats/juce_audio_formats.h"
 #include "juce_gui_basics/juce_gui_basics.h"
+#include <juce_opengl/juce_opengl.h>
+
 #include <memory>
+
+#include <imgui.h>
+#include <imgui_impl_juce/imgui_impl_juce.h>
+#include <imgui_impl_opengl3.h>
+#include <implot.h>
 
 //==============================================================================
 /*
-    This component lives inside our window, and this is where you should put all
-    your controls and content.
+    This component lives inside our window, and this is where you should put
+   all your controls and content.
 */
-class MainComponent : public juce::Component {
+class MainComponent : public juce::Component, juce::OpenGLRenderer {
 public:
   //==============================================================================
   MainComponent();
@@ -20,6 +27,12 @@ public:
   //==============================================================================
   void paint(juce::Graphics &) override;
   void resized() override;
+
+  void newOpenGLContextCreated() override;
+
+  void renderOpenGL() override;
+
+  void openGLContextClosing() override;
 
 private:
   //==============================================================================
@@ -34,7 +47,10 @@ private:
 
   MenuModel menuModel;
 
+  unsigned int imguiOffsetY;
+
   juce::AudioFormatManager audioFormatManager;
+  juce::OpenGLContext glctx;
 
   JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };
