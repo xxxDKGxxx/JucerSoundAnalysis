@@ -1,8 +1,23 @@
 #include "AudioAnalyzer.h"
 
-#include <algorithm>
-#include <cmath>
+#include "Parameters/AMDFParameter.h"
+#include "Parameters/AutocorrelationParameter.h"
+#include "Parameters/SilenceDetectorParameter.h"
+#include "Parameters/SilentRatioParameter.h"
+#include "Parameters/STEParameter.h"
+#include "Parameters/VolumeParameter.h"
+#include "Parameters/ZCRParameter.h"
+
 #include <stdexcept>
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+void AudioAnalyzer::addParameter(std::unique_ptr<IAudioParameter> param) {
+    if (param)
+        parameters_.push_back(std::move(param));
+}
 
 AnalysisResult AudioAnalyzer::analyze(const float* const* channelData,
                                       int numChannels,
@@ -42,7 +57,7 @@ AnalysisResult AudioAnalyzer::analyze(const float* const* channelData,
         size_t frameIndex = 0;
         for (size_t start = 0; start + frameSize <= numSamples; start += hopSize) {
             channelResult.frames.push_back(
-                analyzeFrame(data + start, frameSize, frameIndex, start, params));
+                analyzeFrame(data + start, frameSize, frameIndex, start));
             ++frameIndex;
         }
     }
@@ -50,142 +65,52 @@ AnalysisResult AudioAnalyzer::analyze(const float* const* channelData,
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// Private
+// ---------------------------------------------------------------------------
+
 FrameResult AudioAnalyzer::analyzeFrame(const float* samples,
                                         size_t frameSize,
                                         size_t frameIndex,
-                                        size_t startSample,
-                                        const AnalysisParams& params) const
+                                        size_t startSample) const
 {
     FrameResult fr;
     fr.frameIndex  = frameIndex;
     fr.startSample = startSample;
     fr.endSample   = startSample + frameSize;
 
-    fr.volume           = computeVolume(samples, frameSize);
-    fr.shortTimeEnergy  = computeSTE(samples, frameSize);
-    fr.zeroCrossingRate = computeZCR(samples, frameSize);
-    fr.silentRatio      = computeSilentRatio(samples, frameSize,
-                                             params.sampleSilenceThreshold);
-
-    fr.isSilent = detectSilence(fr.volume, fr.zeroCrossingRate,
-                                params.silenceVolumeThreshold,
-                                params.silenceZcrThreshold);
-
-    if (params.computeAutocorrelation)
-        fr.autocorrelation = computeAutocorrelation(samples, frameSize, frameSize);
-
-    if (params.computeAmdf)
-        fr.amdf = computeAMDF(samples, frameSize, frameSize);
+    // Każdy zarejestrowany parametr sam oblicza swoją wartość (SRP).
+    for (const auto& param : parameters_) {
+        fr.values[param->getName()] = param->compute(samples, frameSize);
+    }
 
     return fr;
 }
 
+// ---------------------------------------------------------------------------
+// Factory
+// ---------------------------------------------------------------------------
 
-double AudioAnalyzer::computeVolume(const float* samples, size_t count)
+AudioAnalyzer AudioAnalyzer::createDefault(double silenceVolumeThreshold,
+                                           double silenceZcrThreshold,
+                                           bool   computeAutocorrelation,
+                                           bool   computeAmdf)
 {
-    if (count == 0) return 0.0;
+    AudioAnalyzer analyzer;
 
-    double sum = 0.0;
-    for (size_t i = 0; i < count; ++i) {
-        const double s = static_cast<double>(samples[i]);
-        sum += s * s;
-    }
-    return std::sqrt(sum / static_cast<double>(count));
-}
+    analyzer.addParameter(std::make_unique<VolumeParameter>());
+    analyzer.addParameter(std::make_unique<STEParameter>());
+    analyzer.addParameter(std::make_unique<ZCRParameter>());
+    analyzer.addParameter(std::make_unique<SilentRatioParameter>(
+        silenceVolumeThreshold, silenceZcrThreshold));
+    analyzer.addParameter(std::make_unique<SilenceDetectorParameter>(
+        silenceVolumeThreshold, silenceZcrThreshold));
 
-double AudioAnalyzer::computeSTE(const float* samples, size_t count)
-{
-    if (count == 0) return 0.0;
+    if (computeAutocorrelation)
+        analyzer.addParameter(std::make_unique<AutocorrelationParameter>());
 
-    double sum = 0.0;
-    for (size_t i = 0; i < count; ++i) {
-        const double s = static_cast<double>(samples[i]);
-        sum += s * s;
-    }
-    return sum / static_cast<double>(count);
-}
+    if (computeAmdf)
+        analyzer.addParameter(std::make_unique<AMDFParameter>());
 
-
-double AudioAnalyzer::computeZCR(const float* samples, size_t count)
-{
-    if (count < 2) return 0.0;
-
-    size_t crossings = 0;
-    for (size_t i = 1; i < count; ++i) {
-        if ((samples[i] >= 0.0f) != (samples[i - 1] >= 0.0f))
-            ++crossings;
-    }
-    return static_cast<double>(crossings) / static_cast<double>(count - 1);
-}
-
-double AudioAnalyzer::computeSilentRatio(const float* samples, size_t count,
-                                         double threshold)
-{
-    if (count == 0) return 0.0;
-
-    size_t silentCount = 0;
-    const float thr = static_cast<float>(threshold);
-    for (size_t i = 0; i < count; ++i) {
-        if (std::fabs(samples[i]) < thr)
-            ++silentCount;
-    }
-    return static_cast<double>(silentCount) / static_cast<double>(count);
-}
-
-std::vector<double> AudioAnalyzer::computeAutocorrelation(const float* samples,
-                                                          size_t count,
-                                                          size_t maxLag)
-{
-    std::vector<double> result(maxLag, 0.0);
-    if (count == 0) return result;
-
-    for (size_t lag = 0; lag < maxLag; ++lag) {
-        double sum = 0.0;
-        const size_t limit = (lag < count) ? (count - lag) : 0;
-        for (size_t n = 0; n < limit; ++n) {
-            sum += static_cast<double>(samples[n])
-                 * static_cast<double>(samples[n + lag]);
-        }
-        result[lag] = sum / static_cast<double>(count);
-    }
-    return result;
-}
-
-std::vector<double> AudioAnalyzer::computeAMDF(const float* samples,
-                                               size_t count,
-                                               size_t maxLag)
-{
-    std::vector<double> result(maxLag, 0.0);
-    if (count == 0) return result;
-
-    for (size_t lag = 0; lag < maxLag; ++lag) {
-        const size_t limit = (lag < count) ? (count - lag) : 0;
-        if (limit == 0) {
-            result[lag] = 0.0;
-            continue;
-        }
-        double sum = 0.0;
-        for (size_t n = 0; n < limit; ++n) {
-            sum += std::fabs(static_cast<double>(samples[n])
-                           - static_cast<double>(samples[n + lag]));
-        }
-        result[lag] = sum / static_cast<double>(limit);
-    }
-    return result;
-}
-
-
-bool AudioAnalyzer::detectSilence(double volume, double zcr,
-                                  double volumeThreshold,
-                                  double zcrThreshold)
-{
-    // I use 2 criteria for silence detection 
-    // 1st - low energy and secondaty ZCR 
-    if (volume < volumeThreshold)
-        return true;
-
-    if (volume < volumeThreshold * 2.0 && zcr < zcrThreshold)
-        return true;
-
-    return false;
+    return analyzer;
 }
