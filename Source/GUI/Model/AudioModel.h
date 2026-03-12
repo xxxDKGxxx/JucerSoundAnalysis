@@ -1,3 +1,5 @@
+#pragma once
+
 #include "juce_audio_basics/juce_audio_basics.h"
 #include "juce_core/juce_core.h"
 #include <memory>
@@ -13,6 +15,8 @@ public:
   unsigned int getBitsPerSample() const;
   unsigned int getNumChannels() const;
   juce::int64 getLengthInSamples() const;
+  double getLengthInSeconds() const;
+
 
 private:
   std::unique_ptr<juce::AudioBuffer<float>> audioBuffer;
