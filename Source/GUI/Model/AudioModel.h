@@ -10,13 +10,12 @@ public:
              double sampleRate, unsigned int bitsPerSample,
              unsigned int numChannels, juce::int64 lengthInSamples);
 
-  const juce::AudioBuffer<float> &getAudioBuffer();
+  const juce::AudioBuffer<float> &getAudioBuffer() const;
   double getSampleRate() const;
   unsigned int getBitsPerSample() const;
   unsigned int getNumChannels() const;
   juce::int64 getLengthInSamples() const;
   double getLengthInSeconds() const;
-
 
 private:
   std::unique_ptr<juce::AudioBuffer<float>> audioBuffer;
