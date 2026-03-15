@@ -5,8 +5,11 @@
 #include "juce_audio_formats/juce_audio_formats.h"
 #include "juce_core/juce_core.h"
 #include "juce_gui_basics/juce_gui_basics.h"
+#include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <memory>
+#include <vector>
 
 //==============================================================================
 MainComponent::MainComponent() {
@@ -27,6 +30,8 @@ MainComponent::MainComponent() {
   glctx.setRenderer(this);
   glctx.attachTo(*this);
   glctx.setContinuousRepainting(true);
+
+  audioAnalyzer = AudioAnalyzer::createDefault();
 }
 
 MainComponent::~MainComponent() { glctx.detach(); }
@@ -86,6 +91,11 @@ void MainComponent::loadWavFile() {
     pAudioModel.reset(new AudioModel(std::move(pAudioBuffer), sampleRate,
                                      bitsPerSample, numChannels,
                                      lengthInSamples));
+
+    analysisResult = audioAnalyzer.analyze(
+        pAudioModel->getAudioBuffer().getArrayOfReadPointers(),
+        pAudioModel->getNumChannels(), pAudioModel->getLengthInSamples(),
+        pAudioModel->getSampleRate());
   });
 }
 
@@ -123,13 +133,7 @@ void MainComponent::renderOpenGL() {
 
   ImGui::Begin("Audio waveform", NULL, commonFlags);
 
-  if (pAudioModel != nullptr && pAudioModel->getLengthInSamples() > 0 &&
-      ImPlot::BeginPlot("Przebieg Audio",
-                        ImVec2(0.7 * getWidth(), 0.25 * getHeight()))) {
-    ImPlot::PlotLine("", pAudioModel->getAudioBuffer().getReadPointer(0),
-                     pAudioModel->getLengthInSamples());
-    ImPlot::EndPlot();
-  }
+  waveformPanel.render(pAudioModel.get(), getWidth(), getHeight());
 
   ImGui::End();
 
@@ -137,6 +141,48 @@ void MainComponent::renderOpenGL() {
   ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.3 * getHeight()));
 
   ImGui::Begin("Headers", NULL, commonFlags);
+
+  headerPanel.render(pAudioModel.get());
+
+  ImGui::End();
+
+  ImGui::SetNextWindowPos(ImVec2(0, 0.3 * getHeight()));
+  ImGui::SetNextWindowSize(ImVec2(0.7 * getWidth(), 0.3 * getHeight()));
+
+  ImGui::Begin("Frame parameters", NULL, commonFlags);
+
+  if (pAudioModel != nullptr && analysisResult.channels.size() > 0) {
+    auto &frames = analysisResult.channels[0].frames;
+
+    std::vector<float> frameMiddles;
+    std::vector<float> zcr;
+
+    frameMiddles.resize((frames.size()));
+    zcr.resize(frames.size());
+
+    std::transform(frames.begin(), frames.end(), frameMiddles.begin(),
+                   [](FrameResult frameResult) {
+                     return (frameResult.startSample + frameResult.endSample) /
+                            2;
+                   });
+
+    std::transform(frames.begin(), frames.end(), zcr.begin(),
+                   [](FrameResult frameResult) {
+                     return frameResult.getDouble("zeroCrossingRate");
+                   });
+
+    if (ImPlot::BeginPlot("Frame parameters",
+                          ImVec2(0.7 * getWidth(), 0.25 * getHeight()))) {
+      ImPlot::PlotLine("", pAudioModel->getAudioBuffer().getReadPointer(0),
+                       pAudioModel->getLengthInSamples());
+
+      ImPlot::PlotLine("ZCR", frameMiddles.data(), zcr.data(),
+                       frameMiddles.size());
+
+      ImPlot::EndPlot();
+    }
+  }
+
   ImGui::End();
 
   ImGui::Render();
