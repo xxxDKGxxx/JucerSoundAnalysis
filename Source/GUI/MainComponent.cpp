@@ -1,14 +1,15 @@
 #include "MainComponent.h"
+#include "Panels/FrameParametersPanel.h"
 #include "imgui.h"
 #include "implot.h"
 #include "juce_audio_basics/juce_audio_basics.h"
 #include "juce_audio_formats/juce_audio_formats.h"
 #include "juce_core/juce_core.h"
 #include "juce_gui_basics/juce_gui_basics.h"
-#include <algorithm>
 #include <cstddef>
-#include <iostream>
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 //==============================================================================
@@ -32,6 +33,15 @@ MainComponent::MainComponent() {
   glctx.setContinuousRepainting(true);
 
   audioAnalyzer = AudioAnalyzer::createDefault();
+
+  frameParameters.push_back(std::pair("zeroCrossingRate", Float));
+  frameParameters.push_back(std::pair("volume", Float));
+  frameParameters.push_back(std::pair("shortTimeEnergy", Float));
+  frameParameters.push_back(std::pair("isSilent", Bool));
+
+  for (auto frameParameterPair : frameParameters) {
+    chosenFrameParameters[frameParameterPair] = false;
+  }
 }
 
 MainComponent::~MainComponent() { glctx.detach(); }
@@ -146,41 +156,32 @@ void MainComponent::renderOpenGL() {
 
   ImGui::End();
 
-  ImGui::SetNextWindowPos(ImVec2(0, 0.3 * getHeight()));
+  ImGui::SetNextWindowPos(ImVec2(0, 0.35 * getHeight()));
   ImGui::SetNextWindowSize(ImVec2(0.7 * getWidth(), 0.3 * getHeight()));
 
   ImGui::Begin("Frame parameters", NULL, commonFlags);
 
-  if (pAudioModel != nullptr && analysisResult.channels.size() > 0) {
-    auto &frames = analysisResult.channels[0].frames;
+  std::vector<std::pair<std::string, ParameterType>> chosenParameters;
 
-    std::vector<float> frameMiddles;
-    std::vector<float> zcr;
-
-    frameMiddles.resize((frames.size()));
-    zcr.resize(frames.size());
-
-    std::transform(frames.begin(), frames.end(), frameMiddles.begin(),
-                   [](FrameResult frameResult) {
-                     return (frameResult.startSample + frameResult.endSample) /
-                            2;
-                   });
-
-    std::transform(frames.begin(), frames.end(), zcr.begin(),
-                   [](FrameResult frameResult) {
-                     return frameResult.getDouble("zeroCrossingRate");
-                   });
-
-    if (ImPlot::BeginPlot("Frame parameters",
-                          ImVec2(0.7 * getWidth(), 0.25 * getHeight()))) {
-      ImPlot::PlotLine("", pAudioModel->getAudioBuffer().getReadPointer(0),
-                       pAudioModel->getLengthInSamples());
-
-      ImPlot::PlotLine("ZCR", frameMiddles.data(), zcr.data(),
-                       frameMiddles.size());
-
-      ImPlot::EndPlot();
+  for (auto frameParameterNameTypePair : frameParameters) {
+    if (chosenFrameParameters[frameParameterNameTypePair]) {
+      chosenParameters.push_back(frameParameterNameTypePair);
     }
+  }
+
+  frameParametersPanel.render(pAudioModel.get(), analysisResult, getWidth(),
+                              getHeight(), chosenParameters);
+
+  ImGui::End();
+
+  ImGui::SetNextWindowPos(ImVec2(0.7 * getWidth(), 0.35 * getHeight()));
+  ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.3 * getHeight()));
+
+  ImGui::Begin("Parameters selection");
+
+  for (auto frameParameterNameTypePair : frameParameters) {
+    ImGui::Checkbox(frameParameterNameTypePair.first.c_str(),
+                    &chosenFrameParameters[frameParameterNameTypePair]);
   }
 
   ImGui::End();
