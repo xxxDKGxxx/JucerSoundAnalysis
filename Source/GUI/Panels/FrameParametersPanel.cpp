@@ -16,9 +16,9 @@ void FrameParametersPanel::render(
     zcr.resize(frames.size());
 
     std::transform(frames.begin(), frames.end(), frameMiddles.begin(),
-                   [](FrameResult frameResult) {
+                   [&analysisResult](FrameResult frameResult) {
                      return (frameResult.startSample + frameResult.endSample) /
-                            2;
+                            2.0;
                    });
 
     if (ImPlot::BeginPlot("Frame parameters",

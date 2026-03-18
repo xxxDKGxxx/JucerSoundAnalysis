@@ -38,6 +38,7 @@ MainComponent::MainComponent() {
   frameParameters.push_back(std::pair("volume", Float));
   frameParameters.push_back(std::pair("shortTimeEnergy", Float));
   frameParameters.push_back(std::pair("isSilent", Bool));
+  frameParameters.push_back(std::pair("isVoiced", Bool));
 
   for (auto frameParameterPair : frameParameters) {
     chosenFrameParameters[frameParameterPair] = false;

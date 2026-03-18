@@ -2,12 +2,14 @@
 
 #include "Parameters/AMDFParameter.h"
 #include "Parameters/AutocorrelationParameter.h"
+#include "Parameters/IsVoicedParameter.h"
 #include "Parameters/STEParameter.h"
 #include "Parameters/SilenceDetectorParameter.h"
 #include "Parameters/SilentRatioParameter.h"
 #include "Parameters/VolumeParameter.h"
 #include "Parameters/ZCRParameter.h"
 
+#include <memory>
 #include <stdexcept>
 
 // ---------------------------------------------------------------------------
@@ -91,6 +93,8 @@ FrameResult AudioAnalyzer::analyzeFrame(const float *samples, size_t frameSize,
 
 AudioAnalyzer AudioAnalyzer::createDefault(double silenceVolumeThreshold,
                                            double silenceZcrThreshold,
+                                           double voicedZcrThreshold,
+                                           double voicedSteThreshold,
                                            bool computeAutocorrelation,
                                            bool computeAmdf) {
   AudioAnalyzer analyzer;
@@ -102,6 +106,8 @@ AudioAnalyzer AudioAnalyzer::createDefault(double silenceVolumeThreshold,
       silenceVolumeThreshold, silenceZcrThreshold));
   analyzer.addParameter(std::make_unique<SilenceDetectorParameter>(
       silenceVolumeThreshold, silenceZcrThreshold));
+  analyzer.addParameter(std::make_unique<IsVoicedParameter>(
+      voicedZcrThreshold, voicedSteThreshold));
 
   if (computeAutocorrelation)
     analyzer.addParameter(std::make_unique<AutocorrelationParameter>());
