@@ -92,20 +92,32 @@ void MainComponent::loadWavFile() {
     juce::Logger::writeToLog("Kanaly: " + juce::String(numChannels) +
                              ", Dlugosc: " + juce::String(lengthInSamples));
 
-    auto pAudioBuffer = std::make_unique<juce::AudioBuffer<float>>(
+    auto pNewAudioBuffer = std::make_unique<juce::AudioBuffer<float>>(
         numChannels, lengthInSamples);
 
-    audioFormatReader->read(pAudioBuffer.get(), 0, lengthInSamples, 0, true,
+    audioFormatReader->read(pNewAudioBuffer.get(), 0, lengthInSamples, 0, true,
                             true);
 
-    pAudioModel.reset(new AudioModel(std::move(pAudioBuffer), sampleRate,
-                                     bitsPerSample, numChannels,
-                                     lengthInSamples));
+    auto pNewAudioModel = std::make_unique<AudioModel>(
+        std::move(pNewAudioBuffer), sampleRate, bitsPerSample, numChannels,
+        lengthInSamples);
 
-    analysisResult = audioAnalyzer.analyze(
-        pAudioModel->getAudioBuffer().getArrayOfReadPointers(),
-        pAudioModel->getNumChannels(), pAudioModel->getLengthInSamples(),
-        pAudioModel->getSampleRate());
+    try {
+      auto newAnalysisResult = audioAnalyzer.analyze(
+          pNewAudioModel->getAudioBuffer().getArrayOfReadPointers(),
+          pNewAudioModel->getNumChannels(),
+          pNewAudioModel->getLengthInSamples(),
+          pNewAudioModel->getSampleRate());
+
+      {
+        juce::ScopedLock lock(dataLock);
+        pAudioModel = std::move(pNewAudioModel);
+        analysisResult = std::move(newAnalysisResult);
+      }
+    } catch (const std::exception &e) {
+      juce::Logger::writeToLog("File analysis error: " +
+                               juce::String(e.what()));
+    }
   });
 }
 
@@ -138,41 +150,45 @@ void MainComponent::renderOpenGL() {
       ImGuiWindowFlags_NoBringToFrontOnFocus |
       ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
 
-  ImGui::SetNextWindowPos(ImVec2(0, 0 + imguiOffsetY));
-  ImGui::SetNextWindowSize(ImVec2(0.7 * getWidth(), 0.3 * getHeight()));
+  {
+    juce::ScopedLock lock(dataLock);
 
-  ImGui::Begin("Audio waveform", NULL, commonFlags);
+    ImGui::SetNextWindowPos(ImVec2(0, 0 + imguiOffsetY));
+    ImGui::SetNextWindowSize(ImVec2(0.7 * getWidth(), 0.3 * getHeight()));
 
-  waveformPanel.render(pAudioModel.get(), getWidth(), getHeight());
+    ImGui::Begin("Audio waveform", NULL, commonFlags);
 
-  ImGui::End();
+    waveformPanel.render(pAudioModel.get(), getWidth(), getHeight());
 
-  ImGui::SetNextWindowPos(ImVec2(0.7 * getWidth(), 0 + imguiOffsetY));
-  ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.3 * getHeight()));
+    ImGui::End();
 
-  ImGui::Begin("Headers", NULL, commonFlags);
+    ImGui::SetNextWindowPos(ImVec2(0.7 * getWidth(), 0 + imguiOffsetY));
+    ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.3 * getHeight()));
 
-  headerPanel.render(pAudioModel.get());
+    ImGui::Begin("Headers", NULL, commonFlags);
 
-  ImGui::End();
+    headerPanel.render(pAudioModel.get());
 
-  ImGui::SetNextWindowPos(ImVec2(0, 0.35 * getHeight()));
-  ImGui::SetNextWindowSize(ImVec2(0.7 * getWidth(), 0.3 * getHeight()));
+    ImGui::End();
 
-  ImGui::Begin("Frame parameters", NULL, commonFlags);
+    ImGui::SetNextWindowPos(ImVec2(0, 0.35 * getHeight()));
+    ImGui::SetNextWindowSize(ImVec2(0.7 * getWidth(), 0.3 * getHeight()));
 
-  std::vector<std::pair<std::string, ParameterType>> chosenParameters;
+    ImGui::Begin("Frame parameters", NULL, commonFlags);
 
-  for (auto frameParameterNameTypePair : frameParameters) {
-    if (chosenFrameParameters[frameParameterNameTypePair]) {
-      chosenParameters.push_back(frameParameterNameTypePair);
+    std::vector<std::pair<std::string, ParameterType>> chosenParameters;
+
+    for (auto frameParameterNameTypePair : frameParameters) {
+      if (chosenFrameParameters[frameParameterNameTypePair]) {
+        chosenParameters.push_back(frameParameterNameTypePair);
+      }
     }
+
+    frameParametersPanel.render(pAudioModel.get(), analysisResult, getWidth(),
+                                getHeight(), chosenParameters);
+
+    ImGui::End();
   }
-
-  frameParametersPanel.render(pAudioModel.get(), analysisResult, getWidth(),
-                              getHeight(), chosenParameters);
-
-  ImGui::End();
 
   ImGui::SetNextWindowPos(ImVec2(0.7 * getWidth(), 0.35 * getHeight()));
   ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.3 * getHeight()));

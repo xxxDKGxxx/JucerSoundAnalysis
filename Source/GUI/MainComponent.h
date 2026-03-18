@@ -60,6 +60,7 @@ private:
 
   AudioAnalyzer audioAnalyzer;
   AnalysisResult analysisResult;
+  juce::CriticalSection dataLock;
 
   unsigned int imguiOffsetY;
 
