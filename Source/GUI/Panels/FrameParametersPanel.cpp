@@ -78,6 +78,8 @@ void FrameParametersPanel::plotFramesBool(std::string parameterName,
     double ys1[2] = {yMin, yMin};
     double ys2[2] = {yMax, yMax};
 
+    ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.3);
+
     ImPlot::PlotShaded(parameterName.c_str(), xs, ys1, ys2, 2);
   }
 }
