@@ -3,12 +3,14 @@
 #include "../Analysis/AudioAnalyzer.h"
 #include "Menu/MenuModel.h"
 #include "Model/AudioModel.h"
+#include "Panels/FrameParametersPanel.h"
 #include "Panels/HeaderPanel.h"
 #include "Panels/WaveformPanel.h"
 #include "juce_audio_formats/juce_audio_formats.h"
 #include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_opengl/juce_opengl.h>
 
+#include <map>
 #include <memory>
 
 #include <imgui.h>
@@ -48,9 +50,13 @@ private:
   std::unique_ptr<AudioModel> pAudioModel;
   std::unique_ptr<juce::FileChooser> pFileChooser;
 
+  std::vector<std::pair<std::string, ParameterType>> frameParameters;
+  std::map<std::pair<std::string, ParameterType>, bool> chosenFrameParameters;
+
   MenuModel menuModel;
   HeaderPanel headerPanel;
   WaveformPanel waveformPanel;
+  FrameParametersPanel frameParametersPanel;
 
   AudioAnalyzer audioAnalyzer;
   AnalysisResult analysisResult;
