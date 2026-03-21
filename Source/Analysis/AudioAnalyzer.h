@@ -79,7 +79,7 @@ public:
   static AudioAnalyzer createDefault(double silenceVolumeThreshold = 0.01,
                                      double silenceZcrThreshold = 0.1,
                                      double voicedZcrThreshold = 0.1,
-                                     double voicedSteThreshold = 0.1,
+                                     double voicedSteThreshold = 0.002,
                                      bool computeAutocorrelation = true,
                                      bool computeAmdf = true);
 

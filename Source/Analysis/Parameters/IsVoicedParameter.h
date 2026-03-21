@@ -4,7 +4,7 @@
 
 class IsVoicedParameter : public IAudioParameter {
 public:
-  IsVoicedParameter(double zcrThreshold = 0.1, double steThreshold = 0.1)
+  IsVoicedParameter(double zcrThreshold = 0.1, double steThreshold = 0.002)
       : zcrThreshold(zcrThreshold), steThreshold(steThreshold) {}
 
   std::string getName() const override { return "isVoiced"; }

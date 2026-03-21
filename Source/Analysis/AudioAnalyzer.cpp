@@ -17,8 +17,9 @@
 // ---------------------------------------------------------------------------
 
 void AudioAnalyzer::addParameter(std::unique_ptr<IAudioParameter> param) {
-  if (param)
+  if (param) {
     parameters_.push_back(std::move(param));
+  }
 }
 
 AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,

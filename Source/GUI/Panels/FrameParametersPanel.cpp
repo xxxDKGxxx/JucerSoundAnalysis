@@ -11,19 +11,25 @@ void FrameParametersPanel::render(
 
     std::vector<float> frameMiddles;
     std::vector<float> zcr;
+    std::vector<float> timeAxis;
+
+    for (auto i = 0; i < pAudioModel->getLengthInSamples(); i++) {
+      timeAxis.push_back(i / pAudioModel->getSampleRate());
+    }
 
     frameMiddles.resize((frames.size()));
     zcr.resize(frames.size());
 
     std::transform(frames.begin(), frames.end(), frameMiddles.begin(),
-                   [&analysisResult](FrameResult frameResult) {
+                   [&pAudioModel](FrameResult frameResult) {
                      return (frameResult.startSample + frameResult.endSample) /
-                            2.0;
+                            2.0 / pAudioModel->getSampleRate();
                    });
 
     if (ImPlot::BeginPlot("Frame parameters",
                           ImVec2(0.7 * width, 0.25 * height))) {
-      ImPlot::PlotLine("", pAudioModel->getAudioBuffer().getReadPointer(0),
+      ImPlot::PlotLine("", timeAxis.data(),
+                       pAudioModel->getAudioBuffer().getReadPointer(0),
                        pAudioModel->getLengthInSamples());
 
       for (auto parameterNameTypePair : chosenParameters) {
@@ -35,7 +41,7 @@ void FrameParametersPanel::render(
           plotFramesFloat(parameterName, frames, frameMiddles);
           break;
         case Bool:
-          plotFramesBool(parameterName, frames);
+          plotFramesBool(parameterName, frames, pAudioModel->getSampleRate());
           break;
         default:
           break;
@@ -63,7 +69,8 @@ void FrameParametersPanel::plotFramesFloat(std::string parameterName,
 }
 
 void FrameParametersPanel::plotFramesBool(std::string parameterName,
-                                          std::vector<FrameResult> &frames) {
+                                          std::vector<FrameResult> &frames,
+                                          double sampleRate) {
   auto yMin = ImPlot::GetPlotLimits().Y.Min;
   auto yMax = ImPlot::GetPlotLimits().Y.Max;
 
@@ -72,8 +79,8 @@ void FrameParametersPanel::plotFramesBool(std::string parameterName,
       continue;
     }
 
-    double xs[2] = {(double)frameResult.startSample,
-                    (double)frameResult.endSample};
+    double xs[2] = {(double)frameResult.startSample / sampleRate,
+                    (double)frameResult.endSample / sampleRate};
 
     double ys1[2] = {yMin, yMin};
     double ys2[2] = {yMax, yMax};

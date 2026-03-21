@@ -23,5 +23,6 @@ private:
                               std::vector<FrameResult> &frames,
                               std::vector<float> &frameMiddles);
   static void plotFramesBool(std::string parameterName,
-                             std::vector<FrameResult> &frames);
+                             std::vector<FrameResult> &frames,
+                             double sampleRate);
 };
