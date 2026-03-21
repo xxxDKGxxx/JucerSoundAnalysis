@@ -17,8 +17,9 @@
 // ---------------------------------------------------------------------------
 
 void AudioAnalyzer::addParameter(std::unique_ptr<IAudioParameter> param) {
-  if (param)
+  if (param) {
     parameters_.push_back(std::move(param));
+  }
 }
 
 AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,
@@ -61,6 +62,31 @@ AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,
       channelResult.frames.push_back(
           analyzeFrame(data + start, frameSize, frameIndex, start));
       ++frameIndex;
+    }
+
+    // Precompute parameter vectors for easier plotting
+    if (!channelResult.frames.empty()) {
+      for (const auto &param : parameters_) {
+        const std::string &name = param->getName();
+        // Check first frame to see what type of parameter it is
+        const auto &firstVal = channelResult.frames[0].values.at(name);
+
+        if (std::holds_alternative<double>(firstVal)) {
+          std::vector<double> vec;
+          vec.reserve(channelResult.frames.size());
+          for (const auto &frame : channelResult.frames) {
+            vec.push_back(std::get<double>(frame.values.at(name)));
+          }
+          channelResult.precomputedFloatParameters[name] = std::move(vec);
+        } else if (std::holds_alternative<bool>(firstVal)) {
+          std::vector<bool> vec;
+          vec.reserve(channelResult.frames.size());
+          for (const auto &frame : channelResult.frames) {
+            vec.push_back(std::get<bool>(frame.values.at(name)));
+          }
+          channelResult.precomputedBoolParameters[name] = std::move(vec);
+        }
+      }
     }
   }
 

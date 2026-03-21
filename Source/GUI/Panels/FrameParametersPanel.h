@@ -19,9 +19,8 @@ public:
          std::vector<std::pair<std::string, ParameterType>> &chosenParameters);
 
 private:
-  static void plotFramesFloat(std::string parameterName,
-                              std::vector<FrameResult> &frames,
-                              std::vector<float> &frameMiddles);
-  static void plotFramesBool(std::string parameterName,
-                             std::vector<FrameResult> &frames);
+  static void plotFramesBool(const std::string& parameterName,
+                             const std::vector<FrameResult> &frames,
+                             double sampleRate,
+                             const std::vector<bool>& boolValues);
 };
