@@ -6,45 +6,41 @@ void FrameParametersPanel::render(
     const AudioModel *pAudioModel, AnalysisResult &analysisResult, int width,
     int height,
     std::vector<std::pair<std::string, ParameterType>> &chosenParameters) {
-  if (pAudioModel != nullptr && analysisResult.channels.size() > 0) {
-    auto &frames = analysisResult.channels[0].frames;
-
-    std::vector<float> frameMiddles;
-    std::vector<float> zcr;
-    std::vector<float> timeAxis;
-
-    for (auto i = 0; i < pAudioModel->getLengthInSamples(); i++) {
-      timeAxis.push_back(i / pAudioModel->getSampleRate());
-    }
-
-    frameMiddles.resize((frames.size()));
-    zcr.resize(frames.size());
-
-    std::transform(frames.begin(), frames.end(), frameMiddles.begin(),
-                   [&pAudioModel](FrameResult frameResult) {
-                     return (frameResult.startSample + frameResult.endSample) /
-                            2.0 / pAudioModel->getSampleRate();
-                   });
+  if (pAudioModel != nullptr && !analysisResult.channels.empty()) {
+    const auto &channelResult = analysisResult.channels[0];
+    const auto &frames = channelResult.frames;
 
     if (ImPlot::BeginPlot("Frame parameters",
                           ImVec2(0.7 * width, 0.25 * height))) {
-      ImPlot::PlotLine("", timeAxis.data(),
+      // Plot waveform as background (optimized)
+      ImPlot::PlotLine("Waveform",
                        pAudioModel->getAudioBuffer().getReadPointer(0),
-                       pAudioModel->getLengthInSamples());
+                       pAudioModel->getLengthInSamples(),
+                       1.0 / pAudioModel->getSampleRate(), 0);
+
+      double xscale =
+          (double)analysisResult.hopSize / pAudioModel->getSampleRate();
+      double xstart =
+          (double)analysisResult.frameSize / 2.0 / pAudioModel->getSampleRate();
 
       for (auto parameterNameTypePair : chosenParameters) {
         auto parameterName = parameterNameTypePair.first;
         auto parameterType = parameterNameTypePair.second;
 
-        switch (parameterType) {
-        case Float:
-          plotFramesFloat(parameterName, frames, frameMiddles);
-          break;
-        case Bool:
-          plotFramesBool(parameterName, frames, pAudioModel->getSampleRate());
-          break;
-        default:
-          break;
+        if (parameterType == Float) {
+          auto it =
+              channelResult.precomputedFloatParameters.find(parameterName);
+          if (it != channelResult.precomputedFloatParameters.end()) {
+            ImPlot::PlotLine(parameterName.c_str(), it->second.data(),
+                             static_cast<int>(it->second.size()), xscale,
+                             xstart);
+          }
+        } else if (parameterType == Bool) {
+          auto it = channelResult.precomputedBoolParameters.find(parameterName);
+          if (it != channelResult.precomputedBoolParameters.end()) {
+            plotFramesBool(parameterName, frames, pAudioModel->getSampleRate(),
+                           it->second);
+          }
         }
       }
 
@@ -52,33 +48,19 @@ void FrameParametersPanel::render(
     }
   }
 }
-void FrameParametersPanel::plotFramesFloat(std::string parameterName,
-                                           std::vector<FrameResult> &frames,
-                                           std::vector<float> &frameMiddles) {
-  std::vector<float> parameterValues;
 
-  parameterValues.resize(frames.size());
-
-  std::transform(frames.begin(), frames.end(), parameterValues.begin(),
-                 [&parameterName](FrameResult frameResult) {
-                   return frameResult.getDouble(parameterName);
-                 });
-
-  ImPlot::PlotLine(parameterName.c_str(), frameMiddles.data(),
-                   parameterValues.data(), frameMiddles.size());
-}
-
-void FrameParametersPanel::plotFramesBool(std::string parameterName,
-                                          std::vector<FrameResult> &frames,
-                                          double sampleRate) {
+void FrameParametersPanel::plotFramesBool(
+    const std::string &parameterName, const std::vector<FrameResult> &frames,
+    double sampleRate, const std::vector<bool> &boolValues) {
   auto yMin = ImPlot::GetPlotLimits().Y.Min;
   auto yMax = ImPlot::GetPlotLimits().Y.Max;
 
-  for (auto frameResult : frames) {
-    if (!frameResult.getBool(parameterName)) {
+  for (size_t i = 0; i < frames.size(); ++i) {
+    if (!boolValues[i]) {
       continue;
     }
 
+    const auto &frameResult = frames[i];
     double xs[2] = {(double)frameResult.startSample / sampleRate,
                     (double)frameResult.endSample / sampleRate};
 
@@ -86,7 +68,6 @@ void FrameParametersPanel::plotFramesBool(std::string parameterName,
     double ys2[2] = {yMax, yMax};
 
     ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.3);
-
     ImPlot::PlotShaded(parameterName.c_str(), xs, ys1, ys2, 2);
   }
 }

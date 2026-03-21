@@ -62,6 +62,9 @@ private:
   AnalysisResult analysisResult;
   juce::CriticalSection dataLock;
 
+  std::atomic<bool> isAnalysisRunning{false};
+  std::string statusMessage;
+
   unsigned int imguiOffsetY;
 
   juce::AudioFormatManager audioFormatManager;

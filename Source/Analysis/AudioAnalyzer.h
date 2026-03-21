@@ -43,6 +43,8 @@ struct FrameResult {
 struct ChannelAnalysisResult {
   int channelIndex = 0;
   std::vector<FrameResult> frames;
+  std::map<std::string, std::vector<double>> precomputedFloatParameters;
+  std::map<std::string, std::vector<bool>> precomputedBoolParameters;
 };
 
 struct AnalysisResult {
