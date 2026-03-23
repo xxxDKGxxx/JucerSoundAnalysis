@@ -1,6 +1,8 @@
 #include "AudioAnalyzer.h"
 
+#include "Parameters/AMDFF0Parameter.h"
 #include "Parameters/AMDFParameter.h"
+#include "Parameters/AutocorrelationF0Parameter.h"
 #include "Parameters/AutocorrelationParameter.h"
 #include "Parameters/IsVoicedParameter.h"
 #include "Parameters/STEParameter.h"
@@ -10,7 +12,9 @@
 #include "Parameters/ZCRParameter.h"
 
 #include <memory>
+#include <optional>
 #include <stdexcept>
+#include <variant>
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -60,7 +64,7 @@ AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,
     size_t frameIndex = 0;
     for (size_t start = 0; start + frameSize <= numSamples; start += hopSize) {
       channelResult.frames.push_back(
-          analyzeFrame(data + start, frameSize, frameIndex, start));
+          analyzeFrame(data + start, frameSize, frameIndex, start, sampleRate));
       ++frameIndex;
     }
 
@@ -85,6 +89,15 @@ AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,
             vec.push_back(std::get<bool>(frame.values.at(name)));
           }
           channelResult.precomputedBoolParameters[name] = std::move(vec);
+        } else if (std::holds_alternative<std::optional<double>>(firstVal)) {
+          std::vector<std::optional<double>> vec;
+          vec.reserve(channelResult.frames.size());
+          for (const auto &frame : channelResult.frames) {
+            vec.push_back(
+                std::get<std::optional<double>>(frame.values.at(name)));
+          }
+          channelResult.precomputedOptionalFloatParameters[name] =
+              std::move(vec);
         }
       }
     }
@@ -98,8 +111,8 @@ AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,
 // ---------------------------------------------------------------------------
 
 FrameResult AudioAnalyzer::analyzeFrame(const float *samples, size_t frameSize,
-                                        size_t frameIndex,
-                                        size_t startSample) const {
+                                        size_t frameIndex, size_t startSample,
+                                        double sampleRate) const {
   FrameResult fr;
   fr.frameIndex = frameIndex;
   fr.startSample = startSample;
@@ -107,7 +120,8 @@ FrameResult AudioAnalyzer::analyzeFrame(const float *samples, size_t frameSize,
 
   // Każdy zarejestrowany parametr sam oblicza swoją wartość (SRP).
   for (const auto &param : parameters_) {
-    fr.values[param->getName()] = param->compute(samples, frameSize);
+    fr.values[param->getName()] =
+        param->compute(samples, frameSize, sampleRate);
   }
 
   return fr;
@@ -134,6 +148,8 @@ AudioAnalyzer AudioAnalyzer::createDefault(double silenceVolumeThreshold,
       silenceVolumeThreshold, silenceZcrThreshold));
   analyzer.addParameter(std::make_unique<IsVoicedParameter>(
       voicedZcrThreshold, voicedSteThreshold));
+  analyzer.addParameter(std::make_unique<AutocorrelationF0Parameter>());
+  analyzer.addParameter(std::make_unique<AMDFF0Parameter>());
 
   if (computeAutocorrelation)
     analyzer.addParameter(std::make_unique<AutocorrelationParameter>());

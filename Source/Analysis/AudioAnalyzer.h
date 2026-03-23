@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
@@ -15,6 +16,17 @@ struct FrameResult {
   size_t endSample = 0;
 
   std::map<std::string, ParameterValue> values;
+
+  std::optional<double> getOptionalDouble(const std::string &key) const {
+    auto it = values.find(key);
+
+    if (it != values.end() &&
+        std::holds_alternative<std::optional<double>>(it->second)) {
+      return std::get<std::optional<double>>(it->second);
+    }
+
+    return std::nullopt;
+  }
 
   double getDouble(const std::string &key) const {
     auto it = values.find(key);
@@ -45,6 +57,8 @@ struct ChannelAnalysisResult {
   std::vector<FrameResult> frames;
   std::map<std::string, std::vector<double>> precomputedFloatParameters;
   std::map<std::string, std::vector<bool>> precomputedBoolParameters;
+  std::map<std::string, std::vector<std::optional<double>>>
+      precomputedOptionalFloatParameters;
 };
 
 struct AnalysisResult {
@@ -89,5 +103,6 @@ private:
   std::vector<std::unique_ptr<IAudioParameter>> parameters_;
 
   FrameResult analyzeFrame(const float *samples, size_t frameSize,
-                           size_t frameIndex, size_t startSample) const;
+                           size_t frameIndex, size_t startSample,
+                           double sampleRate) const;
 };

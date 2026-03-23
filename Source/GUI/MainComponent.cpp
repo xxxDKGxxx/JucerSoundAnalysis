@@ -9,9 +9,9 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
-#include <thread>
 
 //==============================================================================
 MainComponent::MainComponent() {
@@ -40,6 +40,9 @@ MainComponent::MainComponent() {
   frameParameters.push_back(std::pair("shortTimeEnergy", Float));
   frameParameters.push_back(std::pair("isSilent", Bool));
   frameParameters.push_back(std::pair("isVoiced", Bool));
+  frameParameters.push_back(
+      std::pair("AutocorrelationF0(kHz)", InterpolatedFloatOption));
+  frameParameters.push_back(std::pair("AMDFF0(kHz)", InterpolatedFloatOption));
 
   for (auto frameParameterPair : frameParameters) {
     chosenFrameParameters[frameParameterPair] = false;
@@ -68,7 +71,7 @@ void MainComponent::resized() {
 
 void MainComponent::loadWavFile() {
   if (isAnalysisRunning)
-      return;
+    return;
 
   pFileChooser.reset(
       new juce::FileChooser("Select a Wave file...", juce::File{}, "*.wav"));
@@ -87,48 +90,48 @@ void MainComponent::loadWavFile() {
 
     // Start background thread for processing
     std::thread([this, file]() {
-        auto audioFormatReader = audioFormatManager.createReaderFor(file);
+      auto audioFormatReader = audioFormatManager.createReaderFor(file);
 
-        if (audioFormatReader == nullptr) {
-            isAnalysisRunning = false;
-            return;
-        }
-
-        auto sampleRate = audioFormatReader->sampleRate;
-        auto bitsPerSample = audioFormatReader->bitsPerSample;
-        auto numChannels = audioFormatReader->numChannels;
-        auto lengthInSamples = audioFormatReader->lengthInSamples;
-
-        auto pNewAudioBuffer = std::make_unique<juce::AudioBuffer<float>>(
-            numChannels, lengthInSamples);
-
-        audioFormatReader->read(pNewAudioBuffer.get(), 0, static_cast<int>(lengthInSamples), 0, true,
-                                true);
-
-        auto pNewAudioModel = std::make_unique<AudioModel>(
-            std::move(pNewAudioBuffer), sampleRate, bitsPerSample, numChannels,
-            lengthInSamples);
-
-        statusMessage = "Analyzing...";
-
-        try {
-            auto newAnalysisResult = audioAnalyzer.analyze(
-                pNewAudioModel->getAudioBuffer().getArrayOfReadPointers(),
-                pNewAudioModel->getNumChannels(),
-                pNewAudioModel->getLengthInSamples(),
-                pNewAudioModel->getSampleRate());
-
-            {
-                juce::ScopedLock lock(dataLock);
-                pAudioModel = std::move(pNewAudioModel);
-                analysisResult = std::move(newAnalysisResult);
-            }
-        } catch (const std::exception &e) {
-            juce::Logger::writeToLog("File analysis error: " +
-                                     juce::String(e.what()));
-        }
-
+      if (audioFormatReader == nullptr) {
         isAnalysisRunning = false;
+        return;
+      }
+
+      auto sampleRate = audioFormatReader->sampleRate;
+      auto bitsPerSample = audioFormatReader->bitsPerSample;
+      auto numChannels = audioFormatReader->numChannels;
+      auto lengthInSamples = audioFormatReader->lengthInSamples;
+
+      auto pNewAudioBuffer = std::make_unique<juce::AudioBuffer<float>>(
+          numChannels, lengthInSamples);
+
+      audioFormatReader->read(pNewAudioBuffer.get(), 0,
+                              static_cast<int>(lengthInSamples), 0, true, true);
+
+      auto pNewAudioModel = std::make_unique<AudioModel>(
+          std::move(pNewAudioBuffer), sampleRate, bitsPerSample, numChannels,
+          lengthInSamples);
+
+      statusMessage = "Analyzing...";
+
+      try {
+        auto newAnalysisResult = audioAnalyzer.analyze(
+            pNewAudioModel->getAudioBuffer().getArrayOfReadPointers(),
+            pNewAudioModel->getNumChannels(),
+            pNewAudioModel->getLengthInSamples(),
+            pNewAudioModel->getSampleRate());
+
+        {
+          juce::ScopedLock lock(dataLock);
+          pAudioModel = std::move(pNewAudioModel);
+          analysisResult = std::move(newAnalysisResult);
+        }
+      } catch (const std::exception &e) {
+        juce::Logger::writeToLog("File analysis error: " +
+                                 juce::String(e.what()));
+      }
+
+      isAnalysisRunning = false;
     }).detach();
   });
 }
@@ -157,10 +160,13 @@ void MainComponent::renderOpenGL() {
   ImGui::NewFrame();
 
   if (isAnalysisRunning) {
-      ImGui::SetNextWindowPos(ImVec2(getWidth() * 0.5f, getHeight() * 0.5f), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-      ImGui::Begin("Status", nullptr, ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize);
-      ImGui::Text("%s", statusMessage.c_str());
-      ImGui::End();
+    ImGui::SetNextWindowPos(ImVec2(getWidth() * 0.5f, getHeight() * 0.5f),
+                            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+    ImGui::Begin("Status", nullptr,
+                 ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoTitleBar |
+                     ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::Text("%s", statusMessage.c_str());
+    ImGui::End();
   }
 
   auto commonFlags =

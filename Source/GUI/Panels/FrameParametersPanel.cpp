@@ -1,5 +1,6 @@
 #include "FrameParametersPanel.h"
 #include "implot.h"
+#include <optional>
 #include <vector>
 
 void FrameParametersPanel::render(
@@ -18,9 +19,9 @@ void FrameParametersPanel::render(
                        pAudioModel->getLengthInSamples(),
                        1.0 / pAudioModel->getSampleRate(), 0);
 
-      double xscale =
+      auto xscale =
           (double)analysisResult.hopSize / pAudioModel->getSampleRate();
-      double xstart =
+      auto xstart =
           (double)analysisResult.frameSize / 2.0 / pAudioModel->getSampleRate();
 
       for (auto parameterNameTypePair : chosenParameters) {
@@ -41,6 +42,11 @@ void FrameParametersPanel::render(
             plotFramesBool(parameterName, frames, pAudioModel->getSampleRate(),
                            it->second);
           }
+        } else if (parameterType == InterpolatedFloatOption) {
+          auto it = channelResult.precomputedOptionalFloatParameters.find(
+              parameterName);
+          plotFramesInterpolatedFloatOption(parameterName, it->second, xscale,
+                                            xstart);
         }
       }
 
@@ -70,4 +76,27 @@ void FrameParametersPanel::plotFramesBool(
     ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.3);
     ImPlot::PlotShaded(parameterName.c_str(), xs, ys1, ys2, 2);
   }
+}
+
+void FrameParametersPanel::plotFramesInterpolatedFloatOption(
+    const std::string &parameterName,
+    const std::vector<std::optional<double>> &floatOptionValues, double xScale,
+    double xStart) {
+  std::vector<double> xs;
+  std::vector<double> ys;
+
+  xs.reserve(floatOptionValues.size());
+  ys.reserve(floatOptionValues.size());
+
+  for (auto i = 0; i < floatOptionValues.size(); i++) {
+    if (floatOptionValues[i].has_value()) {
+      xs.push_back(i * xScale + xStart);
+      ys.push_back(floatOptionValues[i].value());
+    }
+  }
+
+  if (xs.empty())
+    return;
+
+  ImPlot::PlotLine(parameterName.c_str(), xs.data(), ys.data(), xs.size());
 }
