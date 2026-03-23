@@ -1,3 +1,5 @@
+#pragma once
+
 #include "IAudioParameter.h"
 #include "STEParameter.h"
 #include "ZCRParameter.h"
@@ -9,9 +11,10 @@ public:
 
   std::string getName() const override { return "isVoiced"; }
 
-  ParameterValue compute(const float *samples, size_t count) const override {
-    auto zcr = std::get<double>(zcrParam_.compute(samples, count));
-    auto ste = std::get<double>(steParam_.compute(samples, count));
+  ParameterValue compute(const float *samples, size_t count,
+                         double sampleRate) const override {
+    auto zcr = std::get<double>(zcrParam_.compute(samples, count, sampleRate));
+    auto ste = std::get<double>(steParam_.compute(samples, count, sampleRate));
 
     return zcr < zcrThreshold && ste > steThreshold;
   }

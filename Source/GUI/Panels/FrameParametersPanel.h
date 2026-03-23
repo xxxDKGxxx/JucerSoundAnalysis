@@ -9,6 +9,7 @@
 enum ParameterType {
   Float,
   Bool,
+  InterpolatedFloatOption,
 };
 
 class FrameParametersPanel {
@@ -19,8 +20,12 @@ public:
          std::vector<std::pair<std::string, ParameterType>> &chosenParameters);
 
 private:
-  static void plotFramesBool(const std::string& parameterName,
+  static void plotFramesBool(const std::string &parameterName,
                              const std::vector<FrameResult> &frames,
                              double sampleRate,
-                             const std::vector<bool>& boolValues);
+                             const std::vector<bool> &boolValues);
+  static void plotFramesInterpolatedFloatOption(
+      const std::string &parameterName,
+      const std::vector<std::optional<double>> &floatOptionValues,
+      double xScale, double xStart);
 };

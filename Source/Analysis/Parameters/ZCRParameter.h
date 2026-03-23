@@ -6,7 +6,8 @@ class ZCRParameter : public IAudioParameter {
 public:
   std::string getName() const override { return "zeroCrossingRate"; }
 
-  ParameterValue compute(const float *samples, size_t count) const override {
+  ParameterValue compute(const float *samples, size_t count,
+                         double sampleRate) const override {
     if (count < 2)
       return 0.0;
 
