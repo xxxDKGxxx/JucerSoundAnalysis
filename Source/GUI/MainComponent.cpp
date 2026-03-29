@@ -82,8 +82,9 @@ void MainComponent::loadWavFile() {
   pFileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser &fc) {
     auto file = fc.getResult();
 
-    if (file == juce::File{})
+    if (file == juce::File{}) {
       return;
+    }
 
     isAnalysisRunning = true;
     statusMessage = "Loading file...";
@@ -132,6 +133,8 @@ void MainComponent::loadWavFile() {
       }
 
       isAnalysisRunning = false;
+
+      delete audioFormatReader;
     }).detach();
   });
 }
