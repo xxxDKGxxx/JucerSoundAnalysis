@@ -1,5 +1,6 @@
 #include "FrameParametersPanel.h"
 #include "implot.h"
+#include <algorithm>
 #include <optional>
 #include <vector>
 
@@ -13,11 +14,46 @@ void FrameParametersPanel::render(
 
     if (ImPlot::BeginPlot("Frame parameters",
                           ImVec2(0.7 * width, 0.25 * height))) {
-      // Plot waveform as background (optimized)
-      ImPlot::PlotLine("Waveform",
-                       pAudioModel->getAudioBuffer().getReadPointer(0),
-                       pAudioModel->getLengthInSamples(),
-                       1.0 / pAudioModel->getSampleRate(), 0);
+
+      // Setup axis limits for the first load
+      ImPlot::SetupAxisLimits(ImAxis_X1, 0, pAudioModel->getLengthInSeconds(),
+                              ImGuiCond_FirstUseEver);
+
+      // Get current visible range for LOD logic
+      auto limits = ImPlot::GetPlotLimits();
+      double xMin = limits.X.Min;
+      double xMax = limits.X.Max;
+      double visibleDuration = xMax - xMin;
+      double sampleRate = pAudioModel->getSampleRate();
+
+      // LOD Decision: How many samples are in the visible range?
+      double visibleSamples = visibleDuration * sampleRate;
+
+      if (visibleSamples > 100000) {
+        // Zoomed out: Use thumbnail for performance
+        const auto &visualWaveform = pAudioModel->getVisualWaveform();
+        const auto &visualTime = pAudioModel->getVisualTime();
+
+        if (!visualWaveform.empty()) {
+          ImPlot::PlotLine("Waveform", visualTime.data(), visualWaveform.data(),
+                           static_cast<int>(visualWaveform.size()));
+        }
+      } else {
+        // Zoomed in: Plot raw samples for the visible range only
+        int startSample = std::max(
+            0, static_cast<int>(std::floor(xMin * sampleRate)));
+        int endSample = std::min(
+            static_cast<int>(pAudioModel->getLengthInSamples()),
+            static_cast<int>(std::ceil(xMax * sampleRate)));
+
+        int count = endSample - startSample;
+        if (count > 1) {
+          const float *pRead =
+              pAudioModel->getAudioBuffer().getReadPointer(0) + startSample;
+          ImPlot::PlotLine("Waveform", pRead, count, 1.0 / sampleRate,
+                           static_cast<double>(startSample) / sampleRate);
+        }
+      }
 
       auto xscale =
           (double)analysisResult.hopSize / pAudioModel->getSampleRate();
