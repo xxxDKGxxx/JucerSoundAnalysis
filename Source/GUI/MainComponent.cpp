@@ -44,8 +44,20 @@ MainComponent::MainComponent() {
       std::pair("AutocorrelationF0(kHz)", InterpolatedFloatOption));
   frameParameters.push_back(std::pair("AMDFF0(kHz)", InterpolatedFloatOption));
 
+  clipParameters.push_back("VSTD");
+  clipParameters.push_back("VDR");
+  clipParameters.push_back("VU");
+  clipParameters.push_back("ZSTD");
+  clipParameters.push_back("LSTER");
+  clipParameters.push_back("EnergyEntropy");
+  clipParameters.push_back("HZCRR");
+
   for (auto frameParameterPair : frameParameters) {
     chosenFrameParameters[frameParameterPair] = false;
+  }
+
+  for (const auto &clipParameter : clipParameters) {
+    chosenClipParameters[clipParameter] = false;
   }
 }
 
@@ -88,9 +100,11 @@ void MainComponent::loadWavFile() {
     isAnalysisRunning = true;
     statusMessage = "Loading file...";
     const size_t frameSize = static_cast<size_t>(selectedFrameSize);
+    const double clipWindowSeconds =
+      static_cast<double>(selectedClipWindowSeconds);
 
     // Start background thread for processing
-    std::thread([this, file, frameSize]() {
+    std::thread([this, file, frameSize, clipWindowSeconds]() {
       auto audioFormatReader = audioFormatManager.createReaderFor(file);
 
       if (audioFormatReader == nullptr) {
@@ -118,6 +132,7 @@ void MainComponent::loadWavFile() {
       try {
         AnalysisParams analysisParams;
         analysisParams.frameSize = frameSize;
+        analysisParams.clipWindowSeconds = clipWindowSeconds;
 
         auto newAnalysisResult = audioAnalyzer.analyze(
             pNewAudioModel->getAudioBuffer().getArrayOfReadPointers(),
@@ -154,11 +169,14 @@ void MainComponent::reanalyzeCurrentAudio() {
   statusMessage = "Re-analyzing...";
 
   const size_t frameSize = static_cast<size_t>(selectedFrameSize);
+  const double clipWindowSeconds =
+      static_cast<double>(selectedClipWindowSeconds);
 
-  std::thread([this, frameSize]() {
+  std::thread([this, frameSize, clipWindowSeconds]() {
     try {
       AnalysisParams analysisParams;
       analysisParams.frameSize = frameSize;
+      analysisParams.clipWindowSeconds = clipWindowSeconds;
 
       const float *const *channelData = nullptr;
       int numChannels = 0;
@@ -295,6 +313,51 @@ void MainComponent::renderOpenGL() {
   for (auto frameParameterNameTypePair : frameParameters) {
     ImGui::Checkbox(frameParameterNameTypePair.first.c_str(),
                     &chosenFrameParameters[frameParameterNameTypePair]);
+  }
+
+  ImGui::End();
+
+  ImGui::SetNextWindowPos(ImVec2(0, 0.68 * getHeight()));
+  ImGui::SetNextWindowSize(ImVec2(0.7 * getWidth(), 0.30 * getHeight()));
+
+  ImGui::Begin("Clip-level parameters", NULL, commonFlags);
+
+  {
+    juce::ScopedLock lock(dataLock);
+    std::vector<std::string> chosenClipParameterNames;
+    for (const auto &clipParameter : clipParameters) {
+      if (chosenClipParameters[clipParameter]) {
+        chosenClipParameterNames.push_back(clipParameter);
+      }
+    }
+
+    clipParametersPanel.render(pAudioModel.get(), analysisResult, getWidth(),
+                               getHeight(), chosenClipParameterNames);
+  }
+
+  ImGui::End();
+
+  ImGui::SetNextWindowPos(ImVec2(0.7 * getWidth(), 0.68 * getHeight()));
+  ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.30 * getHeight()));
+
+  ImGui::Begin("Clip parameters selection", NULL, commonFlags);
+
+  ImGui::Text("Clip window");
+  bool clipWindowChanged = false;
+  clipWindowChanged |= ImGui::RadioButton("1s", &selectedClipWindowSeconds, 1);
+  ImGui::SameLine();
+  clipWindowChanged |= ImGui::RadioButton("3s", &selectedClipWindowSeconds, 3);
+  ImGui::SameLine();
+  clipWindowChanged |= ImGui::RadioButton("5s", &selectedClipWindowSeconds, 5);
+
+  if (clipWindowChanged) {
+    reanalyzeCurrentAudio();
+  }
+
+  ImGui::Separator();
+
+  for (const auto &clipParameter : clipParameters) {
+    ImGui::Checkbox(clipParameter.c_str(), &chosenClipParameters[clipParameter]);
   }
 
   ImGui::End();
