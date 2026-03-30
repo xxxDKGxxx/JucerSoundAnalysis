@@ -46,6 +46,7 @@ private:
 
   void loadWavFile();
   void reanalyzeCurrentAudio();
+  AnalysisResult analyzeAudio(const AudioModel &audioModel) const;
   void setMenuBarBounds();
 
   std::unique_ptr<juce::MenuBarComponent> pMenuBarComponent;

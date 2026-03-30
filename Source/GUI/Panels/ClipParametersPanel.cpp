@@ -8,7 +8,7 @@ void ClipParametersPanel::render(
 		const AudioModel *pAudioModel, const AnalysisResult &analysisResult,
 		int width, int height, const std::vector<std::string> &chosenParameters) {
 	if (pAudioModel == nullptr || analysisResult.channels.empty()) {
-		ImGui::TextDisabled("No clip-level timeline data available.");
+		ImGui::TextDisabled("No audio loaded.");
 		return;
 	}
 

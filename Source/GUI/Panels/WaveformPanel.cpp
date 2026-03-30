@@ -5,8 +5,10 @@
 
 void WaveformPanel::render(const AudioModel *pAudioModel, int width,
                            int height) {
-  if (pAudioModel == nullptr || pAudioModel->getLengthInSamples() <= 0)
+  if (pAudioModel == nullptr || pAudioModel->getLengthInSamples() <= 0) {
+    ImGui::TextDisabled("No audio loaded.");
     return;
+  }
 
   if (ImPlot::BeginPlot("Audio Waveform", ImVec2(0.7 * width, 0.25 * height))) {
     // Setup axis limits for the first load

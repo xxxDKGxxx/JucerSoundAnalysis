@@ -99,12 +99,9 @@ void MainComponent::loadWavFile() {
 
     isAnalysisRunning = true;
     statusMessage = "Loading file...";
-    const size_t frameSize = static_cast<size_t>(selectedFrameSize);
-    const double clipWindowSeconds =
-      static_cast<double>(selectedClipWindowSeconds);
 
     // Start background thread for processing
-    std::thread([this, file, frameSize, clipWindowSeconds]() {
+    std::thread([this, file]() {
       auto audioFormatReader = audioFormatManager.createReaderFor(file);
 
       if (audioFormatReader == nullptr) {
@@ -130,15 +127,7 @@ void MainComponent::loadWavFile() {
       statusMessage = "Analyzing...";
 
       try {
-        AnalysisParams analysisParams;
-        analysisParams.frameSize = frameSize;
-        analysisParams.clipWindowSeconds = clipWindowSeconds;
-
-        auto newAnalysisResult = audioAnalyzer.analyze(
-            pNewAudioModel->getAudioBuffer().getArrayOfReadPointers(),
-            pNewAudioModel->getNumChannels(),
-            pNewAudioModel->getLengthInSamples(),
-            pNewAudioModel->getSampleRate(), analysisParams);
+        auto newAnalysisResult = analyzeAudio(*pNewAudioModel);
 
         {
           juce::ScopedLock lock(dataLock);
@@ -168,20 +157,9 @@ void MainComponent::reanalyzeCurrentAudio() {
   isAnalysisRunning = true;
   statusMessage = "Re-analyzing...";
 
-  const size_t frameSize = static_cast<size_t>(selectedFrameSize);
-  const double clipWindowSeconds =
-      static_cast<double>(selectedClipWindowSeconds);
-
-  std::thread([this, frameSize, clipWindowSeconds]() {
+  std::thread([this]() {
     try {
-      AnalysisParams analysisParams;
-      analysisParams.frameSize = frameSize;
-      analysisParams.clipWindowSeconds = clipWindowSeconds;
-
-      const float *const *channelData = nullptr;
-      int numChannels = 0;
-      size_t numSamples = 0;
-      double sampleRate = 0.0;
+      const AudioModel *pCurrentAudioModel = nullptr;
 
       {
         juce::ScopedLock lock(dataLock);
@@ -190,15 +168,10 @@ void MainComponent::reanalyzeCurrentAudio() {
           return;
         }
 
-        channelData = pAudioModel->getAudioBuffer().getArrayOfReadPointers();
-        numChannels = pAudioModel->getNumChannels();
-        numSamples = pAudioModel->getLengthInSamples();
-        sampleRate = pAudioModel->getSampleRate();
+        pCurrentAudioModel = pAudioModel.get();
       }
 
-      auto newAnalysisResult =
-          audioAnalyzer.analyze(channelData, numChannels, numSamples,
-                               sampleRate, analysisParams);
+      auto newAnalysisResult = analyzeAudio(*pCurrentAudioModel);
 
       {
         juce::ScopedLock lock(dataLock);
@@ -210,6 +183,18 @@ void MainComponent::reanalyzeCurrentAudio() {
 
     isAnalysisRunning = false;
   }).detach();
+}
+
+AnalysisResult MainComponent::analyzeAudio(const AudioModel &audioModel) const {
+  AnalysisParams analysisParams;
+  analysisParams.frameSize = static_cast<size_t>(selectedFrameSize);
+  analysisParams.clipWindowSeconds =
+      static_cast<double>(selectedClipWindowSeconds);
+
+  return audioAnalyzer.analyze(audioModel.getAudioBuffer().getArrayOfReadPointers(),
+                               audioModel.getNumChannels(),
+                               audioModel.getLengthInSamples(),
+                               audioModel.getSampleRate(), analysisParams);
 }
 
 void MainComponent::setMenuBarBounds() {
