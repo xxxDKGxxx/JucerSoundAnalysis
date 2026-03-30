@@ -3,6 +3,7 @@
 #include "../Analysis/AudioAnalyzer.h"
 #include "Menu/MenuModel.h"
 #include "Model/AudioModel.h"
+#include "Panels/ClipParametersPanel.h"
 #include "Panels/FrameParametersPanel.h"
 #include "Panels/HeaderPanel.h"
 #include "Panels/WaveformPanel.h"
@@ -45,6 +46,7 @@ private:
 
   void loadWavFile();
   void reanalyzeCurrentAudio();
+  AnalysisResult analyzeAudio(const AudioModel &audioModel) const;
   void setMenuBarBounds();
 
   std::unique_ptr<juce::MenuBarComponent> pMenuBarComponent;
@@ -53,11 +55,14 @@ private:
 
   std::vector<std::pair<std::string, ParameterType>> frameParameters;
   std::map<std::pair<std::string, ParameterType>, bool> chosenFrameParameters;
+  std::vector<std::string> clipParameters;
+  std::map<std::string, bool> chosenClipParameters;
 
   MenuModel menuModel;
   HeaderPanel headerPanel;
   WaveformPanel waveformPanel;
   FrameParametersPanel frameParametersPanel;
+  ClipParametersPanel clipParametersPanel;
 
   AudioAnalyzer audioAnalyzer;
   AnalysisResult analysisResult;
@@ -66,6 +71,7 @@ private:
   std::atomic<bool> isAnalysisRunning{false};
   std::string statusMessage;
   int selectedFrameSize = 1024;
+  int selectedClipWindowSeconds = 1;
 
   unsigned int imguiOffsetY;
 

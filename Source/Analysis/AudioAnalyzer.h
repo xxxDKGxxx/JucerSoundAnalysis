@@ -59,6 +59,8 @@ struct ChannelAnalysisResult {
   std::map<std::string, std::vector<bool>> precomputedBoolParameters;
   std::map<std::string, std::vector<std::optional<double>>>
       precomputedOptionalFloatParameters;
+  std::map<std::string, std::vector<double>> clipTimeSeriesFloatParameters;
+  std::map<std::string, double> clipFloatParameters;
 };
 
 struct AnalysisResult {
@@ -66,6 +68,7 @@ struct AnalysisResult {
   int numChannels = 0;
   size_t frameSize = 0;
   size_t hopSize = 0;
+  double clipWindowSeconds = 1.0;
   std::vector<ChannelAnalysisResult> channels;
 };
 
@@ -74,6 +77,7 @@ struct AnalysisParams {
   size_t hopSize =
       0; // hopSize == 0 to ramki sie nie nakladaja, hopSize == frameSize to
          // ramki sie nie nakladaja, hopSize < frameSize to ramki sie nakladaja
+  double clipWindowSeconds = 1.0;
 };
 
 class AudioAnalyzer {
@@ -101,6 +105,10 @@ public:
 
 private:
   std::vector<std::unique_ptr<IAudioParameter>> parameters_;
+
+  void computeClipLevelParameters(ChannelAnalysisResult &channelResult,
+                                  double sampleRate, size_t hopSize,
+                                  double clipWindowSeconds) const;
 
   FrameResult analyzeFrame(const float *samples, size_t frameSize,
                            size_t frameIndex, size_t startSample,

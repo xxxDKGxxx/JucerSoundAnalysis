@@ -8,12 +8,15 @@ void FrameParametersPanel::render(
     const AudioModel *pAudioModel, AnalysisResult &analysisResult, int width,
     int height,
     std::vector<std::pair<std::string, ParameterType>> &chosenParameters) {
-  if (pAudioModel != nullptr && !analysisResult.channels.empty()) {
-    const auto &channelResult = analysisResult.channels[0];
-    const auto &frames = channelResult.frames;
+  if (pAudioModel == nullptr || analysisResult.channels.empty()) {
+    ImGui::TextDisabled("No audio loaded.");
+    return;
+  }
 
-    if (ImPlot::BeginPlot("Frame parameters",
-                          ImVec2(0.7 * width, 0.25 * height))) {
+  const auto &channelResult = analysisResult.channels[0];
+  const auto &frames = channelResult.frames;
+
+  if (ImPlot::BeginPlot("Frame parameters", ImVec2(0.7 * width, 0.25 * height))) {
 
       // Setup axis limits for the first load
       ImPlot::SetupAxisLimits(ImAxis_X1, 0, pAudioModel->getLengthInSeconds(),
@@ -86,8 +89,7 @@ void FrameParametersPanel::render(
         }
       }
 
-      ImPlot::EndPlot();
-    }
+    ImPlot::EndPlot();
   }
 }
 
