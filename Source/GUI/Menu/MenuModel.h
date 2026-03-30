@@ -4,6 +4,7 @@
 class MenuModel : public juce::MenuBarModel {
 public:
   std::function<void()> onLoadSoundFileClick;
+  std::function<void()> onExportParametersClick;
 
   juce::StringArray getMenuBarNames() override;
 
