@@ -45,6 +45,7 @@ private:
   // Your private member variables go here...
 
   void loadWavFile();
+  void exportParametersToTxt();
   void reanalyzeCurrentAudio();
   AnalysisResult analyzeAudio(const AudioModel &audioModel) const;
   void setMenuBarBounds();

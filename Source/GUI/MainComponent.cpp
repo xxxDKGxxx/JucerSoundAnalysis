@@ -6,8 +6,11 @@
 #include "juce_audio_formats/juce_audio_formats.h"
 #include "juce_core/juce_core.h"
 #include "juce_gui_basics/juce_gui_basics.h"
+#include <algorithm>
 #include <cstddef>
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <utility>
@@ -18,6 +21,8 @@ MainComponent::MainComponent() {
   setSize(1200, 800);
 
   menuModel.onLoadSoundFileClick = [this]() { this->loadWavFile(); };
+  menuModel.onExportParametersClick =
+      [this]() { this->exportParametersToTxt(); };
 
   pMenuBarComponent =
       std::make_unique<juce::MenuBarComponent>(&this->menuModel);
@@ -145,6 +150,172 @@ void MainComponent::loadWavFile() {
       delete audioFormatReader;
     }).detach();
   });
+}
+
+void MainComponent::exportParametersToTxt() {
+  AnalysisResult resultToExport;
+  const AudioModel *audioModel = nullptr;
+  std::vector<std::string> selectedFrameParameterNames;
+  std::vector<std::string> selectedClipParameterNames;
+
+  {
+    juce::ScopedLock lock(dataLock);
+    audioModel = pAudioModel.get();
+    if (audioModel == nullptr || analysisResult.channels.empty()) {
+      juce::Logger::writeToLog("Export canceled: no analyzed audio available.");
+      return;
+    }
+
+    resultToExport = analysisResult;
+
+    for (const auto &frameParameter : frameParameters) {
+      if (chosenFrameParameters[frameParameter]) {
+        selectedFrameParameterNames.push_back(frameParameter.first);
+      }
+    }
+
+    for (const auto &clipParameter : clipParameters) {
+      if (chosenClipParameters[clipParameter]) {
+        selectedClipParameterNames.push_back(clipParameter);
+      }
+    }
+  }
+
+  const auto isFrameParameterSelected =
+      [&selectedFrameParameterNames](const std::string &name) {
+        return std::find(selectedFrameParameterNames.begin(),
+                         selectedFrameParameterNames.end(),
+                         name) != selectedFrameParameterNames.end();
+      };
+
+  const auto isClipParameterSelected =
+      [&selectedClipParameterNames](const std::string &name) {
+        return std::find(selectedClipParameterNames.begin(),
+                         selectedClipParameterNames.end(),
+                         name) != selectedClipParameterNames.end();
+      };
+
+  std::ostringstream oss;
+  oss << std::fixed << std::setprecision(6);
+  oss << "# Sound Analyzer - parameters export\n";
+  oss << "sampleRate=" << audioModel->getSampleRate() << "\n";
+  oss << "bitsPerSample=" << audioModel->getBitsPerSample() << "\n";
+  oss << "numChannels=" << audioModel->getNumChannels() << "\n";
+  oss << "lengthSamples=" << audioModel->getLengthInSamples() << "\n";
+  oss << "lengthSeconds=" << audioModel->getLengthInSeconds() << "\n";
+  oss << "frameSize=" << resultToExport.frameSize << "\n";
+  oss << "hopSize=" << resultToExport.hopSize << "\n";
+  oss << "clipWindowSeconds=" << resultToExport.clipWindowSeconds << "\n\n";
+  oss << "selectedFrameParameters=" << selectedFrameParameterNames.size()
+      << "\n";
+  for (const auto &name : selectedFrameParameterNames) {
+    oss << "frame=" << name << "\n";
+  }
+  oss << "selectedClipParameters=" << selectedClipParameterNames.size()
+      << "\n";
+  for (const auto &name : selectedClipParameterNames) {
+    oss << "clip=" << name << "\n";
+  }
+  oss << "\n";
+
+  const double frameStepSeconds =
+      (resultToExport.sampleRate > 0.0)
+          ? (static_cast<double>(resultToExport.hopSize) /
+             resultToExport.sampleRate)
+          : 0.0;
+
+  for (const auto &channel : resultToExport.channels) {
+    oss << "[channel " << channel.channelIndex << "]\n";
+
+    oss << "clipFloatParameters\n";
+    for (const auto &[name, value] : channel.clipFloatParameters) {
+      if (!isClipParameterSelected(name))
+        continue;
+      oss << name << "=" << value << "\n";
+    }
+    oss << "\n";
+
+    oss << "clipTimeSeriesFloatParameters\n";
+    for (const auto &[name, values] : channel.clipTimeSeriesFloatParameters) {
+      if (!isClipParameterSelected(name))
+        continue;
+
+      for (size_t i = 0; i < values.size(); ++i) {
+        oss << name << ";index=" << i << ";time=" << (i * frameStepSeconds)
+            << ";value=" << values[i] << "\n";
+      }
+    }
+    oss << "\n";
+
+    oss << "frameFloatParameters\n";
+    for (const auto &[name, values] : channel.precomputedFloatParameters) {
+      if (!isFrameParameterSelected(name))
+        continue;
+
+      for (size_t i = 0; i < values.size(); ++i) {
+        oss << name << ";frame=" << i << ";time=" << (i * frameStepSeconds)
+            << ";value=" << values[i] << "\n";
+      }
+    }
+    oss << "\n";
+
+    oss << "frameBoolParameters\n";
+    for (const auto &[name, values] : channel.precomputedBoolParameters) {
+      if (!isFrameParameterSelected(name))
+        continue;
+
+      for (size_t i = 0; i < values.size(); ++i) {
+        oss << name << ";frame=" << i << ";time=" << (i * frameStepSeconds)
+            << ";value=" << (values[i] ? "true" : "false") << "\n";
+      }
+    }
+    oss << "\n";
+
+    oss << "frameOptionalFloatParameters\n";
+    for (const auto &[name, values] : channel.precomputedOptionalFloatParameters) {
+      if (!isFrameParameterSelected(name))
+        continue;
+
+      for (size_t i = 0; i < values.size(); ++i) {
+        oss << name << ";frame=" << i << ";time=" << (i * frameStepSeconds)
+            << ";value=";
+        if (values[i].has_value()) {
+          oss << values[i].value();
+        } else {
+          oss << "null";
+        }
+        oss << "\n";
+      }
+    }
+
+    oss << "\n";
+  }
+
+  pFileChooser.reset(new juce::FileChooser(
+      "Export parameters to TXT...", juce::File{}, "*.txt"));
+
+  const auto chooserFlags = juce::FileBrowserComponent::saveMode |
+                            juce::FileBrowserComponent::canSelectFiles |
+                            juce::FileBrowserComponent::warnAboutOverwriting;
+
+  const auto exportText = juce::String(oss.str());
+  pFileChooser->launchAsync(chooserFlags,
+                            [text = exportText](const juce::FileChooser &fc) {
+                              auto target = fc.getResult();
+                              if (target == juce::File{})
+                                return;
+
+                              if (!target.hasFileExtension("txt")) {
+                                target = target.withFileExtension("txt");
+                              }
+
+                              const bool ok = target.replaceWithText(text);
+                              juce::Logger::writeToLog(
+                                  ok ? ("Exported parameters to: " +
+                                        target.getFullPathName())
+                                     : ("Export failed: " +
+                                        target.getFullPathName()));
+                            });
 }
 
 void MainComponent::reanalyzeCurrentAudio() {
