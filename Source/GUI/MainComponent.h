@@ -44,6 +44,7 @@ private:
   // Your private member variables go here...
 
   void loadWavFile();
+  void reanalyzeCurrentAudio();
   void setMenuBarBounds();
 
   std::unique_ptr<juce::MenuBarComponent> pMenuBarComponent;
@@ -64,6 +65,7 @@ private:
 
   std::atomic<bool> isAnalysisRunning{false};
   std::string statusMessage;
+  int selectedFrameSize = 1024;
 
   unsigned int imguiOffsetY;
 

@@ -88,9 +88,10 @@ void MainComponent::loadWavFile() {
 
     isAnalysisRunning = true;
     statusMessage = "Loading file...";
+    const size_t frameSize = static_cast<size_t>(selectedFrameSize);
 
     // Start background thread for processing
-    std::thread([this, file]() {
+    std::thread([this, file, frameSize]() {
       auto audioFormatReader = audioFormatManager.createReaderFor(file);
 
       if (audioFormatReader == nullptr) {
@@ -116,11 +117,14 @@ void MainComponent::loadWavFile() {
       statusMessage = "Analyzing...";
 
       try {
+        AnalysisParams analysisParams;
+        analysisParams.frameSize = frameSize;
+
         auto newAnalysisResult = audioAnalyzer.analyze(
             pNewAudioModel->getAudioBuffer().getArrayOfReadPointers(),
             pNewAudioModel->getNumChannels(),
             pNewAudioModel->getLengthInSamples(),
-            pNewAudioModel->getSampleRate());
+            pNewAudioModel->getSampleRate(), analysisParams);
 
         {
           juce::ScopedLock lock(dataLock);
@@ -137,6 +141,60 @@ void MainComponent::loadWavFile() {
       delete audioFormatReader;
     }).detach();
   });
+}
+
+void MainComponent::reanalyzeCurrentAudio() {
+  if (isAnalysisRunning)
+    return;
+
+  {
+    juce::ScopedLock lock(dataLock);
+    if (pAudioModel == nullptr)
+      return;
+  }
+
+  isAnalysisRunning = true;
+  statusMessage = "Re-analyzing...";
+
+  const size_t frameSize = static_cast<size_t>(selectedFrameSize);
+
+  std::thread([this, frameSize]() {
+    try {
+      AnalysisParams analysisParams;
+      analysisParams.frameSize = frameSize;
+
+      const float *const *channelData = nullptr;
+      int numChannels = 0;
+      size_t numSamples = 0;
+      double sampleRate = 0.0;
+
+      {
+        juce::ScopedLock lock(dataLock);
+        if (pAudioModel == nullptr) {
+          isAnalysisRunning = false;
+          return;
+        }
+
+        channelData = pAudioModel->getAudioBuffer().getArrayOfReadPointers();
+        numChannels = pAudioModel->getNumChannels();
+        numSamples = pAudioModel->getLengthInSamples();
+        sampleRate = pAudioModel->getSampleRate();
+      }
+
+      auto newAnalysisResult =
+          audioAnalyzer.analyze(channelData, numChannels, numSamples,
+                               sampleRate, analysisParams);
+
+      {
+        juce::ScopedLock lock(dataLock);
+        analysisResult = std::move(newAnalysisResult);
+      }
+    } catch (const std::exception &e) {
+      juce::Logger::writeToLog("Re-analysis error: " + juce::String(e.what()));
+    }
+
+    isAnalysisRunning = false;
+  }).detach();
 }
 
 void MainComponent::setMenuBarBounds() {
@@ -222,6 +280,20 @@ void MainComponent::renderOpenGL() {
   ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.3 * getHeight()));
 
   ImGui::Begin("Parameters selection");
+
+  ImGui::Text("Frame size");
+  bool frameSizeChanged = false;
+  frameSizeChanged |= ImGui::RadioButton("256", &selectedFrameSize, 256);
+  ImGui::SameLine();
+  frameSizeChanged |= ImGui::RadioButton("512", &selectedFrameSize, 512);
+  ImGui::SameLine();
+  frameSizeChanged |= ImGui::RadioButton("1024", &selectedFrameSize, 1024);
+
+  if (frameSizeChanged) {
+    reanalyzeCurrentAudio();
+  }
+
+  ImGui::Separator();
 
   for (auto frameParameterNameTypePair : frameParameters) {
     ImGui::Checkbox(frameParameterNameTypePair.first.c_str(),
