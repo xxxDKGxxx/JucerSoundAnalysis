@@ -58,6 +58,8 @@ MainComponent::MainComponent() {
   clipParameters.push_back("LSTER");
   clipParameters.push_back("EnergyEntropy");
   clipParameters.push_back("HZCRR");
+  clipParameters.push_back("Speech");
+  clipParameters.push_back("Music");
 
   for (auto frameParameterPair : frameParameters) {
     chosenFrameParameters[frameParameterPair] = false;
@@ -383,6 +385,11 @@ void MainComponent::setMenuBarBounds() {
 void MainComponent::newOpenGLContextCreated() {
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
+
+  auto &io = ImGui::GetIO();
+
+  io.IniFilename = nullptr;
+
   ImPlot::CreateContext();
   ImGui_ImplJuce_Init(*this, glctx);
   ImGui_ImplOpenGL3_Init();

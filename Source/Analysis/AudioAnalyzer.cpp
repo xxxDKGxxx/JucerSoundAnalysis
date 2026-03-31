@@ -15,8 +15,8 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
-#include <optional>
 #include <numeric>
+#include <optional>
 #include <stdexcept>
 #include <variant>
 
@@ -57,8 +57,8 @@ double computeRatioByWindowThreshold(const std::vector<double> &values,
   size_t positiveCount = 0;
 
   for (size_t i = 0; i < values.size(); ++i) {
-    const size_t begin = (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow)
-                                                    : 0;
+    const size_t begin =
+        (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow) : 0;
     const size_t count = i - begin + 1;
 
     double windowSum = 0.0;
@@ -68,30 +68,30 @@ double computeRatioByWindowThreshold(const std::vector<double> &values,
     const double windowAverage = windowSum / static_cast<double>(count);
     const double threshold = multiplier * windowAverage;
 
-    const bool isPositive = lessThanThreshold ? (values[i] < threshold)
-                                              : (values[i] > threshold);
+    const bool isPositive =
+        lessThanThreshold ? (values[i] < threshold) : (values[i] > threshold);
     if (isPositive)
       ++positiveCount;
   }
 
-  return static_cast<double>(positiveCount) / static_cast<double>(values.size());
+  return static_cast<double>(positiveCount) /
+         static_cast<double>(values.size());
 }
 
-std::vector<double>
-computeStdDevTimeline(const std::vector<double> &values, size_t windowSize) {
+std::vector<double> computeStdDevTimeline(const std::vector<double> &values,
+                                          size_t windowSize) {
   std::vector<double> timeline;
   if (values.empty())
     return timeline;
 
   const size_t effectiveWindow = std::max<size_t>(1, windowSize);
-  timeline.reserve(values.size());
+  timeline.reserve(values.size() / effectiveWindow);
 
-  for (size_t i = 0; i < values.size(); ++i) {
-    const size_t begin = (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow)
-                                                    : 0;
-
-    std::vector<double> window(values.begin() + static_cast<long>(begin),
-                               values.begin() + static_cast<long>(i + 1));
+  for (size_t i = 0; i + effectiveWindow <= values.size();
+       i += effectiveWindow) {
+    std::vector<double> window(values.begin() + static_cast<long>(i),
+                               values.begin() +
+                                   static_cast<long>(i + effectiveWindow));
     timeline.push_back(computeStdDev(window));
   }
 
@@ -107,30 +107,27 @@ std::vector<double> computeVdrTimeline(const std::vector<double> &values,
     return timeline;
 
   const size_t effectiveWindow = std::max<size_t>(1, windowSize);
-  timeline.reserve(values.size());
+  timeline.reserve(values.size() / effectiveWindow);
 
-  for (size_t i = 0; i < values.size(); ++i) {
-    const size_t begin = (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow)
-                                                    : 0;
-
-    double minValue = values[begin];
-    double maxValue = values[begin];
-    for (size_t k = begin + 1; k <= i; ++k) {
+  for (size_t i = 0; i + effectiveWindow <= values.size();
+       i += effectiveWindow) {
+    double minValue = values[i];
+    double maxValue = values[i];
+    for (size_t k = i + 1; k < i + effectiveWindow; ++k) {
       minValue = std::min(minValue, values[k]);
       maxValue = std::max(maxValue, values[k]);
     }
 
-    const double vdr = (std::abs(maxValue) > eps)
-                           ? ((maxValue - minValue) / maxValue)
-                           : 0.0;
+    const double vdr =
+        (std::abs(maxValue) > eps) ? ((maxValue - minValue) / maxValue) : 0.0;
     timeline.push_back(vdr);
   }
 
   return timeline;
 }
 
-std::vector<double>
-computeVstdTimeline(const std::vector<double> &values, size_t windowSize) {
+std::vector<double> computeVstdTimeline(const std::vector<double> &values,
+                                        size_t windowSize) {
   constexpr double eps = 1e-12;
 
   std::vector<double> timeline;
@@ -138,14 +135,13 @@ computeVstdTimeline(const std::vector<double> &values, size_t windowSize) {
     return timeline;
 
   const size_t effectiveWindow = std::max<size_t>(1, windowSize);
-  timeline.reserve(values.size());
+  timeline.reserve(values.size() / effectiveWindow);
 
-  for (size_t i = 0; i < values.size(); ++i) {
-    const size_t begin = (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow)
-                                                    : 0;
-
-    std::vector<double> window(values.begin() + static_cast<long>(begin),
-                               values.begin() + static_cast<long>(i + 1));
+  for (size_t i = 0; i + effectiveWindow <= values.size();
+       i += effectiveWindow) {
+    std::vector<double> window(values.begin() + static_cast<long>(i),
+                               values.begin() +
+                                   static_cast<long>(i + effectiveWindow));
 
     const auto maxIt = std::max_element(window.begin(), window.end());
     const double maxValue = (maxIt != window.end()) ? *maxIt : 0.0;
@@ -165,30 +161,28 @@ std::vector<double> computeRatioTimeline(const std::vector<double> &values,
     return timeline;
 
   const size_t effectiveWindow = std::max<size_t>(1, windowSize);
-  timeline.reserve(values.size());
+  timeline.reserve(values.size() / effectiveWindow);
 
-  for (size_t i = 0; i < values.size(); ++i) {
-    const size_t begin = (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow)
-                                                    : 0;
-    const size_t count = i - begin + 1;
-
+  for (size_t i = 0; i + effectiveWindow <= values.size();
+       i += effectiveWindow) {
     double windowSum = 0.0;
-    for (size_t k = begin; k <= i; ++k)
+    for (size_t k = i; k < i + effectiveWindow; ++k)
       windowSum += values[k];
 
-    const double windowAverage = windowSum / static_cast<double>(count);
+    const double windowAverage =
+        windowSum / static_cast<double>(effectiveWindow);
     const double threshold = multiplier * windowAverage;
 
     size_t positiveCount = 0;
-    for (size_t k = begin; k <= i; ++k) {
-      const bool isPositive = lessThanThreshold ? (values[k] < threshold)
-                                                : (values[k] > threshold);
+    for (size_t k = i; k < i + effectiveWindow; ++k) {
+      const bool isPositive =
+          lessThanThreshold ? (values[k] < threshold) : (values[k] > threshold);
       if (isPositive)
         ++positiveCount;
     }
 
     timeline.push_back(static_cast<double>(positiveCount) /
-                       static_cast<double>(count));
+                       static_cast<double>(effectiveWindow));
   }
 
   return timeline;
@@ -199,7 +193,7 @@ double computeEnergyEntropyWindow(const std::vector<double> &energies,
   constexpr double eps = 1e-12;
 
   double sumEnergy = 0.0;
-  for (size_t i = begin; i <= end; ++i) {
+  for (size_t i = begin; i < end; ++i) {
     sumEnergy += std::max(0.0, energies[i]);
   }
 
@@ -207,7 +201,7 @@ double computeEnergyEntropyWindow(const std::vector<double> &energies,
     return 0.0;
 
   double entropy = 0.0;
-  for (size_t i = begin; i <= end; ++i) {
+  for (size_t i = begin; i < end; ++i) {
     const double p = std::max(0.0, energies[i]) / sumEnergy;
     if (p > eps) {
       entropy -= p * std::log2(p);
@@ -217,19 +211,20 @@ double computeEnergyEntropyWindow(const std::vector<double> &energies,
   return entropy;
 }
 
-std::vector<double> computeEnergyEntropyTimeline(const std::vector<double> &energies,
-                                                 size_t windowSize) {
+std::vector<double>
+computeEnergyEntropyTimeline(const std::vector<double> &energies,
+                             size_t windowSize) {
   std::vector<double> timeline;
   if (energies.empty())
     return timeline;
 
   const size_t effectiveWindow = std::max<size_t>(1, windowSize);
-  timeline.reserve(energies.size());
+  timeline.reserve(energies.size() / effectiveWindow);
 
-  for (size_t i = 0; i < energies.size(); ++i) {
-    const size_t begin = (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow)
-                                                    : 0;
-    timeline.push_back(computeEnergyEntropyWindow(energies, begin, i));
+  for (size_t i = 0; i + effectiveWindow <= energies.size();
+       i += effectiveWindow) {
+    timeline.push_back(
+        computeEnergyEntropyWindow(energies, i, i + effectiveWindow));
   }
 
   return timeline;
@@ -237,13 +232,13 @@ std::vector<double> computeEnergyEntropyTimeline(const std::vector<double> &ener
 
 double computeVuWindow(const std::vector<double> &values, size_t begin,
                        size_t end) {
-  if (end <= begin + 1)
+  if (end <= begin + 2)
     return 0.0;
 
   std::vector<double> extrema;
-  extrema.reserve(end - begin + 1);
+  extrema.reserve(end - begin);
 
-  for (size_t i = begin + 1; i < end; ++i) {
+  for (size_t i = begin + 1; i < end - 1; ++i) {
     const double d1 = values[i] - values[i - 1];
     const double d2 = values[i + 1] - values[i];
     const bool isPeak = (d1 > 0.0 && d2 < 0.0);
@@ -272,12 +267,11 @@ std::vector<double> computeVuTimeline(const std::vector<double> &values,
     return timeline;
 
   const size_t effectiveWindow = std::max<size_t>(1, windowSize);
-  timeline.reserve(values.size());
+  timeline.reserve(values.size() / effectiveWindow);
 
-  for (size_t i = 0; i < values.size(); ++i) {
-    const size_t begin = (i + 1 > effectiveWindow) ? (i + 1 - effectiveWindow)
-                                                    : 0;
-    timeline.push_back(computeVuWindow(values, begin, i));
+  for (size_t i = 0; i + effectiveWindow <= values.size();
+       i += effectiveWindow) {
+    timeline.push_back(computeVuWindow(values, i, i + effectiveWindow));
   }
 
   return timeline;
@@ -323,6 +317,11 @@ AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,
   result.frameSize = frameSize;
   result.hopSize = hopSize;
   result.clipWindowSeconds = clipWindowSeconds;
+
+  const double frameStepSeconds = static_cast<double>(hopSize) / sampleRate;
+  result.clipWindowFrames = static_cast<size_t>(
+      std::round(clipWindowSeconds / std::max(frameStepSeconds, 1e-12)));
+  result.clipWindowFrames = std::max<size_t>(1, result.clipWindowFrames);
 
   result.channels.resize(static_cast<size_t>(numChannels));
 
@@ -383,10 +382,9 @@ AnalysisResult AudioAnalyzer::analyze(const float *const *channelData,
   return result;
 }
 
-void AudioAnalyzer::computeClipLevelParameters(ChannelAnalysisResult &channelResult,
-                                               double sampleRate,
-                                               size_t hopSize,
-                                               double clipWindowSeconds) const {
+void AudioAnalyzer::computeClipLevelParameters(
+    ChannelAnalysisResult &channelResult, double sampleRate, size_t hopSize,
+    double clipWindowSeconds) const {
   constexpr double eps = 1e-12;
 
   if (sampleRate <= 0.0 || hopSize == 0)
@@ -397,8 +395,7 @@ void AudioAnalyzer::computeClipLevelParameters(ChannelAnalysisResult &channelRes
       std::round(clipWindowSeconds / std::max(frameStepSeconds, 1e-12)));
   clipWindowFrames = std::max<size_t>(1, clipWindowFrames);
 
-  const auto volIt =
-      channelResult.precomputedFloatParameters.find("volume");
+  const auto volIt = channelResult.precomputedFloatParameters.find("volume");
   const auto steIt =
       channelResult.precomputedFloatParameters.find("shortTimeEnergy");
   const auto zcrIt =
@@ -427,10 +424,9 @@ void AudioAnalyzer::computeClipLevelParameters(ChannelAnalysisResult &channelRes
       channelResult.clipTimeSeriesFloatParameters["VDR"] =
           computeVdrTimeline(volume, clipWindowFrames);
 
-        auto vuTimeline = computeVuTimeline(volume, clipWindowFrames);
-        channelResult.clipFloatParameters["VU"] = computeMean(vuTimeline);
-        channelResult.clipTimeSeriesFloatParameters["VU"] =
-          std::move(vuTimeline);
+      auto vuTimeline = computeVuTimeline(volume, clipWindowFrames);
+      channelResult.clipFloatParameters["VU"] = computeMean(vuTimeline);
+      channelResult.clipTimeSeriesFloatParameters["VU"] = std::move(vuTimeline);
     }
   }
 
@@ -447,26 +443,65 @@ void AudioAnalyzer::computeClipLevelParameters(ChannelAnalysisResult &channelRes
     const auto &ste = steIt->second;
     if (!ste.empty()) {
       channelResult.clipFloatParameters["LSTER"] =
-        computeRatioByWindowThreshold(ste, clipWindowFrames, 0.5, true);
+          computeRatioByWindowThreshold(ste, clipWindowFrames, 0.5, true);
       channelResult.clipTimeSeriesFloatParameters["LSTER"] =
-        computeRatioTimeline(ste, clipWindowFrames, 0.5, true);
+          computeRatioTimeline(ste, clipWindowFrames, 0.5, true);
 
-      auto entropyTimeline = computeEnergyEntropyTimeline(ste, clipWindowFrames);
+      auto entropyTimeline =
+          computeEnergyEntropyTimeline(ste, clipWindowFrames);
       channelResult.clipFloatParameters["EnergyEntropy"] =
-        computeMean(entropyTimeline);
+          computeMean(entropyTimeline);
       channelResult.clipTimeSeriesFloatParameters["EnergyEntropy"] =
-        std::move(entropyTimeline);
+          std::move(entropyTimeline);
     }
   }
 
   if (zcrIt != channelResult.precomputedFloatParameters.end()) {
     const auto &zcr = zcrIt->second;
     if (!zcr.empty()) {
-      channelResult.clipFloatParameters["HZCRR"] = computeRatioByWindowThreshold(
-          zcr, clipWindowFrames, 1.5, false);
+      channelResult.clipFloatParameters["HZCRR"] =
+          computeRatioByWindowThreshold(zcr, clipWindowFrames, 1.5, false);
       channelResult.clipTimeSeriesFloatParameters["HZCRR"] =
           computeRatioTimeline(zcr, clipWindowFrames, 1.5, false);
     }
+  }
+
+  // --- Classification Speech/Music ---
+  const auto &lsterTimeline =
+      channelResult.clipTimeSeriesFloatParameters["LSTER"];
+  const auto &hzcrrTimeline =
+      channelResult.clipTimeSeriesFloatParameters["HZCRR"];
+  const auto &vdrTimeline = channelResult.clipTimeSeriesFloatParameters["VDR"];
+  const auto &vuTimeline = channelResult.clipTimeSeriesFloatParameters["VU"];
+  const auto &zstdTimeline =
+      channelResult.clipTimeSeriesFloatParameters["ZSTD"];
+
+  if (!lsterTimeline.empty()) {
+    std::vector<bool> speechTimeline;
+    std::vector<bool> musicTimeline;
+    speechTimeline.reserve(lsterTimeline.size());
+    musicTimeline.reserve(lsterTimeline.size());
+
+    for (size_t i = 0; i < lsterTimeline.size(); ++i) {
+      double lster = lsterTimeline[i];
+      double hzcrr = hzcrrTimeline.size() > i ? hzcrrTimeline[i] : 0.0;
+      double vdr = vdrTimeline.size() > i ? vdrTimeline[i] : 0.0;
+      double vu = vuTimeline.size() > i ? vuTimeline[i] : 0.0;
+      double zstd = zstdTimeline.size() > i ? zstdTimeline[i] : 0.0;
+
+      // Speech: LSTER high, HZCRR high, VDR high
+      bool isSpeech = (lster > 0.2) && (hzcrr > 0.09) && (vdr > 0.7);
+      speechTimeline.push_back(isSpeech);
+
+      // Music: LSTER low, VU high, ZSTD low
+      bool isMusic = (lster < 0.4) && (vu > 0.02) && (zstd < 0.025);
+      musicTimeline.push_back(isMusic);
+    }
+
+    channelResult.clipTimeSeriesBoolParameters["Speech"] =
+        std::move(speechTimeline);
+    channelResult.clipTimeSeriesBoolParameters["Music"] =
+        std::move(musicTimeline);
   }
 }
 

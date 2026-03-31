@@ -60,6 +60,7 @@ struct ChannelAnalysisResult {
   std::map<std::string, std::vector<std::optional<double>>>
       precomputedOptionalFloatParameters;
   std::map<std::string, std::vector<double>> clipTimeSeriesFloatParameters;
+  std::map<std::string, std::vector<bool>> clipTimeSeriesBoolParameters;
   std::map<std::string, double> clipFloatParameters;
 };
 
@@ -69,6 +70,7 @@ struct AnalysisResult {
   size_t frameSize = 0;
   size_t hopSize = 0;
   double clipWindowSeconds = 1.0;
+  size_t clipWindowFrames = 1;
   std::vector<ChannelAnalysisResult> channels;
 };
 
