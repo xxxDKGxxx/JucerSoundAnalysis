@@ -21,8 +21,9 @@ MainComponent::MainComponent() {
   setSize(1200, 800);
 
   menuModel.onLoadSoundFileClick = [this]() { this->loadWavFile(); };
-  menuModel.onExportParametersClick =
-      [this]() { this->exportParametersToTxt(); };
+  menuModel.onExportParametersClick = [this]() {
+    this->exportParametersToTxt();
+  };
 
   pMenuBarComponent =
       std::make_unique<juce::MenuBarComponent>(&this->menuModel);
@@ -43,6 +44,7 @@ MainComponent::MainComponent() {
   frameParameters.push_back(std::pair("zeroCrossingRate", Float));
   frameParameters.push_back(std::pair("volume", Float));
   frameParameters.push_back(std::pair("shortTimeEnergy", Float));
+  frameParameters.push_back(std::pair("crestFactor(da)", Float));
   frameParameters.push_back(std::pair("isSilent", Bool));
   frameParameters.push_back(std::pair("isVoiced", Bool));
   frameParameters.push_back(
@@ -211,8 +213,7 @@ void MainComponent::exportParametersToTxt() {
   for (const auto &name : selectedFrameParameterNames) {
     oss << "frame=" << name << "\n";
   }
-  oss << "selectedClipParameters=" << selectedClipParameterNames.size()
-      << "\n";
+  oss << "selectedClipParameters=" << selectedClipParameterNames.size() << "\n";
   for (const auto &name : selectedClipParameterNames) {
     oss << "clip=" << name << "\n";
   }
@@ -272,7 +273,8 @@ void MainComponent::exportParametersToTxt() {
     oss << "\n";
 
     oss << "frameOptionalFloatParameters\n";
-    for (const auto &[name, values] : channel.precomputedOptionalFloatParameters) {
+    for (const auto &[name, values] :
+         channel.precomputedOptionalFloatParameters) {
       if (!isFrameParameterSelected(name))
         continue;
 
@@ -291,31 +293,29 @@ void MainComponent::exportParametersToTxt() {
     oss << "\n";
   }
 
-  pFileChooser.reset(new juce::FileChooser(
-      "Export parameters to TXT...", juce::File{}, "*.txt"));
+  pFileChooser.reset(new juce::FileChooser("Export parameters to TXT...",
+                                           juce::File{}, "*.txt"));
 
   const auto chooserFlags = juce::FileBrowserComponent::saveMode |
                             juce::FileBrowserComponent::canSelectFiles |
                             juce::FileBrowserComponent::warnAboutOverwriting;
 
   const auto exportText = juce::String(oss.str());
-  pFileChooser->launchAsync(chooserFlags,
-                            [text = exportText](const juce::FileChooser &fc) {
-                              auto target = fc.getResult();
-                              if (target == juce::File{})
-                                return;
+  pFileChooser->launchAsync(
+      chooserFlags, [text = exportText](const juce::FileChooser &fc) {
+        auto target = fc.getResult();
+        if (target == juce::File{})
+          return;
 
-                              if (!target.hasFileExtension("txt")) {
-                                target = target.withFileExtension("txt");
-                              }
+        if (!target.hasFileExtension("txt")) {
+          target = target.withFileExtension("txt");
+        }
 
-                              const bool ok = target.replaceWithText(text);
-                              juce::Logger::writeToLog(
-                                  ok ? ("Exported parameters to: " +
-                                        target.getFullPathName())
-                                     : ("Export failed: " +
-                                        target.getFullPathName()));
-                            });
+        const bool ok = target.replaceWithText(text);
+        juce::Logger::writeToLog(
+            ok ? ("Exported parameters to: " + target.getFullPathName())
+               : ("Export failed: " + target.getFullPathName()));
+      });
 }
 
 void MainComponent::reanalyzeCurrentAudio() {
@@ -365,10 +365,10 @@ AnalysisResult MainComponent::analyzeAudio(const AudioModel &audioModel) const {
   analysisParams.clipWindowSeconds =
       static_cast<double>(selectedClipWindowSeconds);
 
-  return audioAnalyzer.analyze(audioModel.getAudioBuffer().getArrayOfReadPointers(),
-                               audioModel.getNumChannels(),
-                               audioModel.getLengthInSamples(),
-                               audioModel.getSampleRate(), analysisParams);
+  return audioAnalyzer.analyze(
+      audioModel.getAudioBuffer().getArrayOfReadPointers(),
+      audioModel.getNumChannels(), audioModel.getLengthInSamples(),
+      audioModel.getSampleRate(), analysisParams);
 }
 
 void MainComponent::setMenuBarBounds() {
@@ -516,7 +516,8 @@ void MainComponent::renderOpenGL() {
   ImGui::Separator();
 
   for (const auto &clipParameter : clipParameters) {
-    ImGui::Checkbox(clipParameter.c_str(), &chosenClipParameters[clipParameter]);
+    ImGui::Checkbox(clipParameter.c_str(),
+                    &chosenClipParameters[clipParameter]);
   }
 
   ImGui::End();

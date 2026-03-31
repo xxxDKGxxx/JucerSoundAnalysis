@@ -3,8 +3,8 @@
 #include "juce_gui_basics/juce_gui_basics.h"
 
 juce::StringArray MenuModel::getMenuBarNames() {
-  return {juce::CharPointer_UTF8("Plik..."),
-          juce::CharPointer_UTF8("Eksport...")};
+  return {juce::CharPointer_UTF8("File..."),
+          juce::CharPointer_UTF8("Export...")};
 }
 
 void MenuModel::menuItemSelected(int menuItemID, int topLevelMenuIndex) {
@@ -24,12 +24,12 @@ juce::PopupMenu MenuModel::getMenuForIndex(int topLevelMenuIndex,
   juce::PopupMenu popupMenu;
 
   if (topLevelMenuIndex == 0) {
-    popupMenu.addItem(1, juce::CharPointer_UTF8("Wczytaj..."));
+    popupMenu.addItem(1, juce::CharPointer_UTF8("Load..."));
     return popupMenu;
   }
 
   if (topLevelMenuIndex == 1) {
-    popupMenu.addItem(2, juce::CharPointer_UTF8("Parametry do TXT..."));
+    popupMenu.addItem(2, juce::CharPointer_UTF8("Save parameters as TXT..."));
     return popupMenu;
   }
 

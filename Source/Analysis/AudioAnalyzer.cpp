@@ -4,6 +4,7 @@
 #include "Parameters/AMDFParameter.h"
 #include "Parameters/AutocorrelationF0Parameter.h"
 #include "Parameters/AutocorrelationParameter.h"
+#include "Parameters/CrestFactorParameter.h"
 #include "Parameters/IsVoicedParameter.h"
 #include "Parameters/STEParameter.h"
 #include "Parameters/SilenceDetectorParameter.h"
@@ -505,6 +506,7 @@ AudioAnalyzer AudioAnalyzer::createDefault(double silenceVolumeThreshold,
   analyzer.addParameter(std::make_unique<VolumeParameter>());
   analyzer.addParameter(std::make_unique<STEParameter>());
   analyzer.addParameter(std::make_unique<ZCRParameter>());
+  analyzer.addParameter(std::make_unique<CrestFactorParameter>());
   analyzer.addParameter(std::make_unique<SilentRatioParameter>(
       silenceVolumeThreshold, silenceZcrThreshold));
   analyzer.addParameter(std::make_unique<SilenceDetectorParameter>(
