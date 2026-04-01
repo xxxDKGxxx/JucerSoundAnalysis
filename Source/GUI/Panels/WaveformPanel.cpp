@@ -31,16 +31,16 @@ void WaveformPanel::render(const AudioModel *pAudioModel, int width,
       const auto &visualTime = pAudioModel->getVisualTime();
 
       if (!visualWaveform.empty()) {
-        ImPlot::PlotLine("Signal", visualTime.data(), visualWaveform.data(),
+        ImPlot::PlotLine("Waveform", visualTime.data(), visualWaveform.data(),
                          static_cast<int>(visualWaveform.size()));
       }
     } else {
       // Zoomed in: Plot raw samples for the visible range only
-      int startSample = std::max(
-          0, static_cast<int>(std::floor(xMin * sampleRate)));
-      int endSample = std::min(
-          static_cast<int>(pAudioModel->getLengthInSamples()),
-          static_cast<int>(std::ceil(xMax * sampleRate)));
+      int startSample =
+          std::max(0, static_cast<int>(std::floor(xMin * sampleRate)));
+      int endSample =
+          std::min(static_cast<int>(pAudioModel->getLengthInSamples()),
+                   static_cast<int>(std::ceil(xMax * sampleRate)));
 
       int count = endSample - startSample;
       if (count > 1) {
