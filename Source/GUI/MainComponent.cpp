@@ -460,7 +460,7 @@ void MainComponent::renderOpenGL() {
   ImGui::SetNextWindowPos(ImVec2(0.7 * getWidth(), 0.35 * getHeight()));
   ImGui::SetNextWindowSize(ImVec2(0.3 * getWidth(), 0.3 * getHeight()));
 
-  ImGui::Begin("Parameters selection");
+  ImGui::Begin("Parameters selection", NULL, commonFlags);
 
   ImGui::Text("Frame size");
   bool frameSizeChanged = false;
